@@ -1,0 +1,19 @@
+{
+ "count": 919091,
+ "bytes_per_point": 8,
+ "scale_m": 0.01,
+ "frame": "site metres: x east, y up from the median ground, z south",
+ "source": "USGS 3D Elevation Program LiDAR, project USGS_LPC_MD_VA_Sandy_NCR_2014_LAS_2015, read from AWS Open Data (usgs-lidar-public)",
+ "spacing_m": 0.7,
+ "ground_height_m": 25.97,
+ "classes": {
+  "other": 143149,
+  "ground": 199165,
+  "road": 103974,
+  "building": 318720,
+  "vegetation": 154083,
+  "water": 0
+ },
+ "derived": 570962,
+ "derived_note": "The survey labels ground and some buildings. Unlabelled points are classed by us: near the ground (road if inside an OpenStreetMap road width), inside a building footprint, or vegetation from multiple returns."
+}

@@ -1,0 +1,19 @@
+{
+ "count": 403857,
+ "bytes_per_point": 8,
+ "scale_m": 0.01,
+ "frame": "site metres: x east, y up from the median ground, z south",
+ "source": "USGS 3D Elevation Program LiDAR, project NY_NewYorkCity, read from AWS Open Data (usgs-lidar-public)",
+ "spacing_m": 0.7,
+ "ground_height_m": 15.15,
+ "classes": {
+  "other": 40785,
+  "ground": 75021,
+  "road": 31180,
+  "building": 252678,
+  "vegetation": 4193,
+  "water": 0
+ },
+ "derived": 313941,
+ "derived_note": "The survey labels ground and some buildings. Unlabelled points are classed by us: near the ground (road if inside an OpenStreetMap road width), inside a building footprint, or vegetation from multiple returns."
+}

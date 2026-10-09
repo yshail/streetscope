@@ -139,10 +139,10 @@ export function recommendations(site: Site, j: Junction): Rec[] {
       crossing: { x: p[0] + dx * off, z: p[1] + dz * off, dx, dz, w: 2 + 3.2 * busiest.lanes * 2 } })
   }
   const ev = evCandidates(site)
-  if (ev.length) out.push({ id: 'ev', kind: 'ev', title: `${ev.length} EV charging candidate sites`, basis: 'proposed', costLakh: ev.length * 9, ev,
+  if (ev.length) out.push({ id: 'ev', kind: 'ev', title: ev.length === 1 ? 'EV charging candidate site' : `${ev.length} EV charging candidate sites`, basis: 'proposed', costLakh: ev.length * 9, ev,
     what: 'Kerbside spots on main roads beside the largest buildings, at least 300 m from any mapped charger.',
     assumption: 'Heuristic screening of map data: building floor area as a proxy for demand. Cost is an ASSUMED 9 lakh per site.',
-    effect: `${ev.length} new sites, none within 300 m of an existing charger`, at: ev[0] })
+    effect: `${ev.length} new site${ev.length === 1 ? '' : 's'}, none within 300 m of an existing charger`, at: ev[0] })
   return out
 }
 
@@ -218,13 +218,13 @@ export function compareMetrics(site: Site, j: Junction, recs: Rec[]): Metric[] {
   const ratio = sol ? sol.area_load_after / Math.max(.01, sol.area_load_before) : 1
   const speedAfter = worstLink ? speedKmh(worstLink.c, worstLink.r * ratio) : null
   return [
-    { key: 'load', label: 'Peak load on worst approach', basis: 'simulated', before: sol ? sol.area_load_before : j.worst, after: sol ? sol.area_load_after : j.worst, unit: '×', better: 'lower', digits: 2 },
-    { key: 'speed', label: 'Peak speed on worst approach', basis: 'simulated', before: speedBefore, after: speedAfter, unit: 'km/h', better: 'higher', digits: 0 },
+    { key: 'load', label: 'Peak load', basis: 'simulated', before: sol ? sol.area_load_before : j.worst, after: sol ? sol.area_load_after : j.worst, unit: '×', better: 'lower', digits: 2 },
+    { key: 'speed', label: 'Peak speed', basis: 'simulated', before: speedBefore, after: speedAfter, unit: 'km/h', better: 'higher', digits: 0 },
     { key: 'delay', label: 'Network delay', basis: 'simulated', before: 0, after: sol ? sol.network_delay_change_pct : 0, unit: '%', better: 'lower', digits: 1 },
-    { key: 'shade', label: 'Day-mean walkway shade', basis: 'computed', before: sc ? sc.baseline_day_mean_shade_pct : null, after: sc ? (trees ? sc.day_mean_shade_pct : sc.baseline_day_mean_shade_pct) : null, unit: '%', better: 'higher', digits: 1 },
-    { key: 'canopy', label: 'Tree crown cover (site)', basis: 'computed', before: cover0, after: trees && sc ? Math.round(1000 * (crown(tw.trees) + crown(sc.trees_added)) / siteArea) / 10 : cover0, unit: '%', better: 'higher', digits: 1 },
-    { key: 'cross', label: 'Protected crossings within 50 m', basis: crossing ? 'proposed' : 'observed', before: crossings0, after: crossings0 + (crossing ? 1 : 0), unit: '', better: 'higher', digits: 0 },
-    { key: 'cost', label: 'Estimated cost', basis: 'assumed', before: 0, after: Math.round(recs.reduce((s, r) => s + r.costLakh, 0) * 10) / 10, unit: 'lakh ₹', better: 'lower', digits: 1 },
+    { key: 'shade', label: 'Walkway shade', basis: 'computed', before: sc ? sc.baseline_day_mean_shade_pct : null, after: sc ? (trees ? sc.day_mean_shade_pct : sc.baseline_day_mean_shade_pct) : null, unit: '%', better: 'higher', digits: 1 },
+    { key: 'canopy', label: 'Crown cover', basis: 'computed', before: cover0, after: trees && sc ? Math.round(1000 * (crown(tw.trees) + crown(sc.trees_added)) / siteArea) / 10 : cover0, unit: '%', better: 'higher', digits: 1 },
+    { key: 'cross', label: 'Crossings ≤ 50 m', basis: crossing ? 'proposed' : 'observed', before: crossings0, after: crossings0 + (crossing ? 1 : 0), unit: '', better: 'higher', digits: 0 },
+    { key: 'cost', label: 'Cost', basis: 'assumed', before: 0, after: Math.round(recs.reduce((s, r) => s + r.costLakh, 0) * 10) / 10, unit: 'lakh ₹', better: 'lower', digits: 1 },
   ]
 }
 

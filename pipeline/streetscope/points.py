@@ -4,7 +4,7 @@ Run: python -m streetscope.points --site web/data/dupont
 
 Writes points.bin.gz (8 bytes per point: int16 x, y, z in centimetres in the site frame with y up, uint8 class,
 uint8 height above ground in 0.25 m steps) and points.json (counts, source, class table).
-Classes: 1 ground, 2 road, 3 building, 4 vegetation, 5 water, 6 bridge, 0 other. Bit 0x80 marks a class we derived
+Classes: 1 ground, 2 road, 3 building, 4 vegetation, 5 water, 0 other. Bit 0x80 marks a class we derived
 (from footprints, road widths and multiple returns) rather than one the survey labelled.
 """
 
@@ -21,7 +21,7 @@ from . import lidar
 from .shade import Grid, polygon_mask, stamp_polyline
 
 DERIVED = 0x80
-NAMES = {0: "other", 1: "ground", 2: "road", 3: "building", 4: "vegetation", 5: "water", 6: "bridge"}
+NAMES = {0: "other", 1: "ground", 2: "road", 3: "building", 4: "vegetation", 5: "water"}
 
 
 def classify(x, z, h, cls, nr, twin: dict, dtm: np.ndarray, grid: Grid):
@@ -46,8 +46,8 @@ def classify(x, z, h, cls, nr, twin: dict, dtm: np.ndarray, grid: Grid):
     out[lab == 6] = 3
     out[np.isin(lab, (3, 4, 5))] = 4
     out[lab == 9] = 5
-    out[lab == 17] = 6
-    un = ~np.isin(lab, (2, 6, 3, 4, 5, 9, 17))
+    # only the standard ASPRS codes are trusted; other codes (some older surveys reuse 17 and up) are classed by us
+    un = ~np.isin(lab, (2, 6, 3, 4, 5, 9))
     low = un & (agl < 0.4)
     out[low] = np.where(on_r[low], 2, 1) | DERIVED
     b_ = un & ~low & in_b & (agl > 2.0)

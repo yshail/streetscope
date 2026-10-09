@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --color-ink: #e6edf5;
+  --color-dim: #8a9bb0;
+  --color-faint: #4a5a6c;
+  --color-line: rgba(148, 178, 210, .14);
+  --color-glass: rgba(8, 12, 18, .76);
+  --color-cyan: #22d3ee;
+  --color-emerald: #34d399;
+  --color-amber: #fbbf24;
+  --color-coral: #fb7185;
+  --color-violet: #a78bfa;
+}
+
+html, body, #root { height: 100%; margin: 0; background: #03060a; color: var(--color-ink); font-family: var(--font-sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Floating glass, used only where needed */
+.glass { background: var(--color-glass); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); border: 1px solid var(--color-line); }
+.label { font: 500 10px/1.2 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--color-dim); }
+.hair { height: 1px; background: var(--color-line); }
+
+/* Cesium chrome: keep the credits readable but quiet */
+.cesium-viewer-bottom, .cesium-widget-credits { display: none !important; }
+.credits { position: absolute; left: 14px; bottom: 6px; z-index: 5; font-size: 10px; color: #6b7c90; max-width: 50vw; }
+.credits * { color: #6b7c90 !important; font-size: 10px !important; }
+.credits img { height: 12px; vertical-align: middle; }
+.credits a { text-decoration: none; }
+
+/* World-anchored annotations */
+.ann-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
+.ann { position: absolute; left: 0; top: 0; padding: 0 0 18px 8px; transition: opacity .25s; will-change: transform; white-space: nowrap; }
+.ann::before { content: ""; position: absolute; left: 0; bottom: 0; width: 1px; height: 18px; background: currentColor; opacity: .6; }
+.ann::after { content: ""; position: absolute; left: -3px; bottom: -3px; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
+.ann > span { display: block; text-shadow: 0 1px 8px rgba(0, 0, 0, .9); }
+.ann-k { font: 500 9px/1.3 var(--font-mono); letter-spacing: .14em; opacity: .85; }
+.ann-v { font: 600 13px/1.25 var(--font-sans); color: #f1f5f9; }
+.ann-m { font: 400 11px/1.3 var(--font-sans); color: #b6c3d1; }
+.ann-obs { color: #e2e8f0; } .ann-est { color: #94a3b8; } .ann-com { color: var(--color-emerald); } .ann-sim { color: var(--color-amber); }
+.ann-pro { color: var(--color-violet); } .ann-quiet { color: #4fb3c8; }
+.ann-sel .ann-v { font-size: 14px; }
+.ann-off { display: none !important; }
+
+/* Panels enter and leave gently */
+.panel-in { animation: panelIn .45s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes panelIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+.rise-in { animation: riseIn .5s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.pulse-dot { animation: pulseDot 2.2s ease-in-out infinite; }
+@keyframes pulseDot { 50% { opacity: .35; } }
+.scanbar { position: relative; overflow: hidden; }
+.scanbar::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(34, 211, 238, .35), transparent); animation: scan 1.4s linear infinite; }
+@keyframes scan { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .04); border: 1px solid var(--color-line); }
+.seg button { padding: 5px 12px; border-radius: 7px; font-size: 12px; color: var(--color-dim); transition: background .2s, color .2s; }
+.seg button:hover { color: var(--color-ink); }
+.seg button[aria-pressed="true"] { background: rgba(34, 211, 238, .14); color: #cffafe; box-shadow: inset 0 0 0 1px rgba(34, 211, 238, .35); }
+
+.chip { display: inline-flex; align-items: center; gap: 5px; font: 500 9.5px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; border: 1px solid currentColor; }
+.b-observed { color: #e2e8f0; } .b-computed { color: var(--color-emerald); } .b-simulated { color: var(--color-amber); }
+.b-proposed { color: var(--color-violet); } .b-assumed { color: #94a3b8; } .b-live { color: var(--color-cyan); }
+
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 9px; font-size: 13px; font-weight: 500; color: var(--color-ink); border: 1px solid var(--color-line); background: rgba(255, 255, 255, .03); transition: border-color .2s, background .2s; }
+.btn:hover { border-color: rgba(34, 211, 238, .5); background: rgba(34, 211, 238, .06); }
+.btn-primary { color: #ecfeff; border-color: rgba(34, 211, 238, .55); background: linear-gradient(180deg, rgba(34, 211, 238, .22), rgba(34, 211, 238, .08)); box-shadow: 0 0 24px rgba(34, 211, 238, .18); }
+.btn-violet { color: #f5f3ff; border-color: rgba(167, 139, 250, .6); background: linear-gradient(180deg, rgba(167, 139, 250, .25), rgba(167, 139, 250, .08)); box-shadow: 0 0 24px rgba(167, 139, 250, .2); }
+
+.switch { width: 28px; height: 16px; border-radius: 8px; background: rgba(255, 255, 255, .12); position: relative; flex: none; transition: background .2s; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #94a3b8; transition: left .2s, background .2s; }
+.switch[aria-checked="true"] { background: rgba(34, 211, 238, .45); }
+.switch[aria-checked="true"]::after { left: 14px; background: #ecfeff; }
+
+.scroll-thin { scrollbar-width: thin; scrollbar-color: rgba(148, 178, 210, .2) transparent; }
+input[type=range].hour { -webkit-appearance: none; appearance: none; height: 18px; background: transparent; }
+input[type=range].hour::-webkit-slider-runnable-track { height: 2px; background: linear-gradient(90deg, #1e3a5f, #fbbf24 50%, #fb7185); border-radius: 1px; }
+input[type=range].hour::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #ecfeff; margin-top: -5px; box-shadow: 0 0 10px rgba(34, 211, 238, .7); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
