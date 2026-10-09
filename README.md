@@ -4,6 +4,28 @@
 
 Built for the WeMakeDevs x AWS *Environmental Hacks* (Heat and Water track), October 2026.
 
+## See it in 60 seconds
+
+Run `scripts/run_all.bat` (or the commands under *Run it*), then open these links:
+
+| Link | What you see |
+|---|---|
+| `http://localhost:8765/` | Landing page with live headline numbers |
+| `viewer.html?site=aiims&fix=trees&view=top` | AIIMS junction with 132 planted street trees (yellow) |
+| `viewer.html?site=times` | Times Square, level 1: building heights measured by LiDAR |
+| `viewer.html?site=aiims&view=top&ask=Where%20should%20we%20plant%20first%3F` | The doctor answering, with its number check |
+
+![AIIMS junction before the fix](docs/img/01-aiims-today.jpg)
+*Today: orange walkway is in direct sun at 15:00. Only 8.6% is shaded.*
+
+![AIIMS junction with street trees and the doctor's answer](docs/img/04-doctor.jpg)
+*Plant 132 street trees: day-mean walkway shade 8.9% to 20%. The doctor's answer is checked against its tools.*
+
+![Times Square with LiDAR heights](docs/img/03-times-lidar.jpg)
+*Level 1: 91 of 103 building heights at Times Square are measured by USGS LiDAR.*
+
+Docs: [writeup](docs/WRITEUP.md), [3-minute video script](docs/VIDEO_SCRIPT.md), [demo and submission checklist](docs/DEMO_CHECKLIST.md).
+
 ## The problem
 
 Cities plan streets from flat maps and old drawings. Heat is 3D: shade depends on building height, tree crowns and the sun's angle. A junction can look fine on a map and still leave walkers in direct sun for ten hours a day. The 3D data that could show this exists, but it sits in expert tools.
@@ -32,11 +54,11 @@ Cities plan streets from flat maps and old drawings. Heat is 3D: shade depends o
 
 ```bash
 python -m pip install numpy pytest rasterio "laspy[lazrs]" pyproj strands-agents boto3
-python scripts/serve.py            # http://localhost:8765/  (viewer.html, earth.html, demo/)
+python scripts/serve.py            # http://localhost:8765/  (landing page, viewer.html, earth.html, demo/)
 python scripts/dev_api.py          # http://localhost:8766/ask  (the doctor; add USE_LLM=0 for offline only)
 ```
 
-Windows: double-click `scripts/run.bat`.
+Windows: double-click `scripts/run_all.bat` (starts both servers and opens the landing page).
 
 Build a new site (needs internet for the Overpass download):
 

@@ -325,7 +325,15 @@ $('#ask').onclick=ask; $('#q').addEventListener('keydown',e=>{if(e.key==='Enter'
     const idx=await (await fetch('data/index.json')).json();
     $('#site').innerHTML=idx.sites.map(s=>'<option value="'+s.twin+'">'+s.name+'</option>').join('');
     $('#site').onchange=e=>load(e.target.value).catch(err=>{$('#msg').style.display='grid';$('#msg').textContent='Could not load: '+err.message});
-    await load(idx.sites[0].twin);
+    // deep links: viewer.html?site=dupont&fix=trees&hour=12&view=top&ask=Where%20should%20we%20plant%20first%3F
+    const q=new URLSearchParams(location.search), want=q.get('site');
+    const opt=want&&[...$('#site').options].find(o=>o.value.startsWith(want+'/'));
+    if(opt)$('#site').value=opt.value;
+    await load($('#site').value);
+    if(q.get('hour')){const h=+q.get('hour');$('#hour').value=h;setHour(h)}
+    if(q.get('fix'))await chooseFix(q.get('fix'));
+    if(q.get('view')==='top')$('#top').click();
+    if(q.get('ask')){$('#q').value=q.get('ask');ask()}
   }catch(e){$('#msg').style.display='grid';$('#msg').textContent='Could not load the twin. Run scripts/serve.py and open http://localhost:8765/viewer.html. '+e.message}
 })();
 let last=performance.now();
