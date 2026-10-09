@@ -83,6 +83,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <section><h3>What the map says</h3><div class="kv" id="stats"></div></section>
     <section><h3>How much is real</h3><div id="conf"></div></section>
     <section><h3>Gaps we will not hide</h3><div id="gaps"></div></section>
+    <section><h3>Ask the doctor <span class="sub">answers only from tools</span></h3>
+      <div style="display:flex;gap:6px"><input id="q" type="text" placeholder="Where should we plant first?" style="flex:1;background:#070c12;border:1px solid var(--line2);color:var(--ice);padding:8px;font:400 13px var(--mono)"><button class="btn" id="ask">Ask</button></div>
+      <div id="qs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+      <div id="ans" class="note" style="color:var(--ink);font-size:13.5px"></div>
+      <div id="trace" class="note" style="font-family:var(--mono);font-size:11px"></div>
+    </section>
     <section><h3>Attribution</h3><p class="note" style="margin:0" id="attr"></p></section>
   </aside>
 
@@ -92,6 +98,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <button class="btn" id="top">Top view</button>
   </footer>
 </div>
+<script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
@@ -251,6 +258,20 @@ async function load(path){
   build(); stats(); const sl=$('#hour'); sl.min=shade.hours[0]; sl.max=shade.hours[shade.hours.length-1]; sl.value=15; setHour(15); applyLayers(); $('#msg').style.display='none';
 }
 $('#hour').addEventListener('input',e=>setHour(+e.target.value));
+/* ---------- ask the doctor ---------- */
+const CFG=window.STREETSCOPE||{api:'http://localhost:8766/ask',token:''};
+['Where should we plant first?','How shaded is the walkway at noon?','Tell me about this place'].forEach(t=>{const b=document.createElement('button');b.className='btn';b.textContent=t;b.style.fontSize='11px';b.style.textTransform='none';b.onclick=()=>{$('#q').value=t;ask()};$('#qs').appendChild(b)});
+async function ask(){
+  const q=$('#q').value.trim(); if(!q)return;
+  $('#ans').textContent='Thinking...'; $('#trace').textContent='';
+  try{
+    const r=await fetch(CFG.api,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},CFG.token?{'x-ask-token':CFG.token}:{}),body:JSON.stringify({site:$('#site').value.split('/')[0],question:q})});
+    const j=await r.json(); if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+    $('#ans').textContent=j.answer;
+    $('#trace').innerHTML='tools: '+j.tools_called.map(t=>t.tool).join(', ')+'<br>'+(j.verified?'<span style="color:var(--good)">every number in the answer came from a tool</span>':'<span style="color:var(--bad)">not backed by a tool: '+j.unverified_numbers.join(', ')+'</span>')+(j.fallback_reason?'<br>language model unavailable ('+j.fallback_reason+'), showing the offline answer':'');
+  }catch(e){$('#ans').textContent='The doctor service is not reachable. Start it with: python scripts/dev_api.py ('+e.message+')';}
+}
+$('#ask').onclick=ask; $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')ask()});
 (async function boot(){
   try{
     const idx=await (await fetch('data/index.json')).json();
