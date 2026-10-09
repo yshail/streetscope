@@ -3,14 +3,43 @@ import type { Selection, Site } from '../lib/types'
 import { type Junction, facts, recommendations, speedKmh } from '../lib/model'
 import { dist, polyLength, polygonArea } from '../lib/geo'
 import { BasisChip, Panel, Stat, fmt } from './ui'
+import type { Context } from '../lib/context'
+import { POI_COL } from '../scene/CityScene'
 
-export function SelectionPanel({ site, sel, junctions, hourIdx, onClose, onAnalyze, onSimulate }: {
-  site: Site; sel: Selection; junctions: Junction[]; hourIdx: number; onClose: () => void; onAnalyze: () => void; onSimulate: () => void
+export function SelectionPanel({ site, ctx, sel, junctions, hourIdx, onClose, onAnalyze, onSimulate }: {
+  site: Site | null; ctx: Context | null; sel: Selection; junctions: Junction[]; hourIdx: number; onClose: () => void; onAnalyze: () => void; onSimulate: () => void
 }) {
   const [collapsed, setCollapsed] = useState(false)
   if (!sel) return null
-  const tw = site.twin, hour = tw.shade.hours[hourIdx]
   let body: JSX.Element | null = null, title = '', kicker = ''
+  if (sel.kind === 'cbuilding' || sel.kind === 'poi') {
+    if (!ctx) return null
+    if (sel.kind === 'cbuilding') {
+      const b = ctx.buildings[sel.index]
+      if (!b) return null
+      const fl = Math.max(1, Math.round(b.h / 3.2))
+      title = b.name || 'Building'; kicker = 'Building · ' + (b.kind === 'yes' ? 'map context' : b.kind)
+      body = <div className="grid grid-cols-2 gap-x-5 px-5 py-2">
+        <Stat label="Height" value={b.h.toFixed(1)} unit="m" b={b.tagged ? 'observed' : 'assumed'} sub={b.tagged ? 'OSM height or levels' : 'estimated from building type'} />
+        <Stat label="Footprint" value={fmt(b.area, 0)} unit="m²" b="computed" />
+        <Stat label="Floors (est.)" value={fl} b="computed" sub="height ÷ 3.2 m" />
+        <Stat label="Floor area (est.)" value={fmt(b.area * fl, 0)} unit="m²" b="computed" />
+      </div>
+    } else {
+      const p = ctx.pois[sel.index]
+      if (!p) return null
+      title = p.name || p.kind.replace(/_/g, ' '); kicker = 'Place · ' + p.cat
+      const near = ctx.stops.filter(s => Math.hypot(s.x - p.x, s.z - p.z) <= 400).length
+      body = <div className="px-5 py-3 text-[12.5px] text-dim"><span className="chip mr-2" style={{ color: POI_COL[p.cat] }}>{p.kind.replace(/_/g, ' ')}</span>{near} bus stop{near === 1 ? '' : 's'} within 400 m. <BasisChip b="observed" /></div>
+    }
+    return (
+      <div className="pointer-events-none absolute right-4 top-[72px] z-10 w-[372px]">
+        <Panel title={title} kicker={kicker} onClose={onClose}>{body}</Panel>
+      </div>
+    )
+  }
+  if (!site) return null
+  const tw = site.twin, hour = tw.shade.hours[hourIdx]
 
   if (sel.kind === 'junction') {
     const j = junctions.find(x => x.id === sel.id)
@@ -90,7 +119,7 @@ export function SelectionPanel({ site, sel, junctions, hourIdx, onClose, onAnaly
   return (
     <div className="pointer-events-none absolute right-4 top-[72px] z-10 w-[372px]">
       <Panel title={<button onClick={() => setCollapsed(c => !c)} className="text-left" aria-expanded={!collapsed}>{title}</button>} kicker={kicker} onClose={onClose}>
-        {!collapsed && <div className="scroll-thin max-h-[calc(100vh-190px)] overflow-y-auto">{body}</div>}
+        {!collapsed && <div className="scroll-thin max-h-[calc(100vh-330px)] overflow-y-auto">{body}</div>}
       </Panel>
     </div>
   )

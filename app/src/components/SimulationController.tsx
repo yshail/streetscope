@@ -11,7 +11,7 @@ export function SimulationController({ recs, chosen, toggle, proposed, setPropos
         <section className="glass panel-in pointer-events-auto rounded-2xl">
           <div className="px-5 pt-4 pb-3"><div className="label">Simulation · {junctionName}</div><h2 className="mt-1 text-[17px] font-semibold text-white">Interventions</h2></div>
           <div className="hair" />
-          <div className="scroll-thin max-h-[42vh] overflow-y-auto py-1">
+          <div className="scroll-thin max-h-[34vh] overflow-y-auto py-1">
             {recs.map(r => (
               <button key={r.id} onClick={() => toggle(r.id)} className="flex w-full items-start gap-3 px-5 py-2.5 text-left hover:bg-white/[.03]">
                 <span className="switch mt-0.5" role="switch" aria-checked={chosen.has(r.id)} aria-label={r.title} />

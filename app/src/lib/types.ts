@@ -68,6 +68,8 @@ export type Selection =
   | { kind: 'tree'; index: number }
   | { kind: 'stop'; index: number }
   | { kind: 'ev'; index: number }
+  | { kind: 'cbuilding'; index: number }
+  | { kind: 'poi'; index: number }
   | null
 
 /* Every number on screen says where it came from */

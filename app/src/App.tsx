@@ -1,32 +1,42 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Selection, Site, SiteRef } from './lib/types'
-import { loadIndex, loadScenarioGrids, loadSite } from './lib/data'
+import { DATA, loadIndex, loadScenarioGrids, loadSite } from './lib/data'
+import { type Context, loadContext } from './lib/context'
 import { type Finding, type Junction, type Rec, buildJunctions, compareMetrics, findings, recommendations } from './lib/model'
 import { type Place, type Weather, doctorStatus, liveWeather, modelName, store } from './lib/services'
-import type { CityScene, LayerKey, Preset } from './scene/CityScene'
+import type { CityScene, LayerKey, Preset, Quality } from './scene/CityScene'
 import { CityViewport } from './components/CityViewport'
 import { type Mode, TopNav } from './components/TopNav'
 import { LayerControl } from './components/LayerControl'
-import { CameraDock } from './components/CameraDock'
+import { CameraDock, HoverTip, MiniMap } from './components/Live'
 import { SelectionPanel } from './components/SelectionPanel'
 import { AnalysisPanel } from './components/AnalysisPanel'
 import { SimulationController } from './components/SimulationController'
 import { CompareView } from './components/CompareView'
 import { EnvStrip } from './components/EnvStrip'
+import { AreaIntel } from './components/AreaIntel'
 import { SettingsPopover } from './components/SettingsPopover'
 import { PointCloudViewer } from './components/PointCloudViewer'
+import { BuildCard } from './components/BuildCard'
 
 const Q = new URLSearchParams(location.search)
-const DEFAULT_LAYERS: Record<LayerKey, boolean> = { traffic: true, congestion: true, pedestrian: true, shade: false, trees: true, transit: false, ev: true, widths: true, buildings: true }
+const CTX_RADIUS = 900
+const DEFAULT_LAYERS: Record<LayerKey, boolean> = {
+  traffic: true, congestion: true, pedestrian: true, shade: false, trees: true, transit: false, ev: true, widths: true, buildings: true,
+  context: true, poi: true, hexmap: false, sunpath: true, pillars: true, compass: true,
+}
 
 export default function App() {
   const sceneRef = useRef<CityScene | null>(null)
-  const [ready, setReady] = useState(false)
+  const [scene, setScene] = useState<CityScene | null>(null)
   const [sites, setSites] = useState<SiteRef[]>([])
-  const [siteId, setSiteId] = useState(Q.get('site') || 'aiims')
+  const [siteId, setSiteId] = useState(Q.get('place') ? '' : Q.get('site') || 'aiims')
   const [site, setSite] = useState<Site | null>(null)
+  const [ctx, setCtx] = useState<Context | null>(null)
+  const [place, setPlace] = useState<Place | null>(null)
   const [junctions, setJunctions] = useState<Junction[]>([])
   const [loading, setLoading] = useState('Loading the city…')
+  const [ctxStatus, setCtxStatus] = useState('')
   const [mode, setModeState] = useState<Mode>('explore')
   const [sel, setSel] = useState<Selection>(null)
   const [hourIdx, setHourIdx] = useState(9)
@@ -39,46 +49,72 @@ export default function App() {
   const [tilesErr, setTilesErr] = useState('')
   const [hasKey, setHasKey] = useState(!!store.get('gkey'))
   const [reduced, setReduced] = useState(store.get('reduced') === '1' || matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const [quality, setQualityState] = useState<Quality>((store.get('quality') as Quality) || 'auto')
+  const [lowPower, setLowPower] = useState(false)
   const [weather, setWeather] = useState<Weather | null>(null)
   const [doctor, setDoctor] = useState('checking…')
   const [toast, setToast] = useState('')
-  const [hover, setHover] = useState<{ label: string; x: number; y: number } | null>(null)
-  const [cam, setCam] = useState({ h: 0, mpp: 1 })
 
   /* ---------- scene and data ---------- */
-  const onReady = useCallback((s: CityScene) => {
-    sceneRef.current = s
-    let t = 0
-    s.onCamera = (h, mpp) => { const now = performance.now(); if (now - t > 120) { t = now; setCam({ h, mpp }) } }
-    setReady(true)
-  }, [])
+  const onReady = useCallback((s: CityScene) => { sceneRef.current = s; s.on('quality', setLowPower); setScene(s); (window as unknown as { __gc: CityScene }).__gc = s }, [])   // __gc: for scripted tests
   useEffect(() => { loadIndex().then(setSites).catch(() => setLoading('Could not read the twins. Start scripts/serve.py and open http://localhost:8765/app/')) }, [])
   useEffect(() => { doctorStatus().then(st => setDoctor(st ? (st.mode === 'offline' ? 'Offline templates' : `${modelName(st.model)} · ${st.provider}`) : 'Not running (scripts/dev_api.py)')) }, [])
-  useEffect(() => { if (sceneRef.current) sceneRef.current.reduced = reduced; store.set('reduced', reduced ? '1' : '0') }, [reduced, ready])
+  useEffect(() => { if (scene) scene.reduced = reduced; store.set('reduced', reduced ? '1' : '0') }, [reduced, scene])
+  useEffect(() => { scene?.setQuality(quality); store.set('quality', quality) }, [quality, scene])
+  const layersRef = useRef(layers); layersRef.current = layers   // async loaders must apply the switches as they are now
+  const applyLayers = (s: CityScene) => Object.entries(layersRef.current).forEach(([k, v]) => s.setLayer(k as LayerKey, v))
+
+  /* map context around a point: about a kilometre of OpenStreetMap detail, loaded in the browser */
+  const loadCtx = useCallback(async (s: CityScene, lat: number, lon: number, alone: boolean, saved?: string) => {
+    setCtxStatus('Loading map detail…')
+    try {
+      const c = await loadContext(lat, lon, CTX_RADIUS, setCtxStatus, saved)
+      if (alone) await s.showPlace(c); else await s.setContext(c)
+      applyLayers(s); setCtx(c); setCtxStatus('')
+    } catch (e) { setCtxStatus(''); setToast((e as Error).message) }
+  }, [layers])   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const s = sceneRef.current, ref = sites.find(x => x.id === siteId)
-    if (!ready || !s || !ref) return
+    const ref = sites.find(x => x.id === siteId)
+    if (!scene || !ref) return
     let live = true
-    setLoading('Building the twin…'); setSel(null); setAnalysis(null); setModeState('explore')
+    setLoading('Building the twin…'); setSel(null); setAnalysis(null); setModeState('explore'); setPlace(null); setCtx(null)
     loadSite(ref).then(async st => {
       if (!live) return
       const js = buildJunctions(st)
       const key = store.get('gkey')
-      if (key && !s.tilesOn) { const e = await s.setTiles(key); setTilesErr(e || '') }
-      await s.loadSite(st, js)
-      Object.entries(layers).forEach(([k, v]) => s.setLayer(k as LayerKey, v))
+      if (key && !scene.tilesOn) { const e = await scene.setTiles(key); setTilesErr(e || '') }
+      await scene.loadSite(st, js)
+      applyLayers(scene)
       setSite(st); setJunctions(js)
       setHourIdx(Math.max(0, st.twin.shade.hours.indexOf(15)))
       setLoading('')
       liveWeather(st.twin.meta.center.lat, st.twin.meta.center.lon).then(w => live && setWeather(w))
+      loadCtx(scene, st.twin.meta.center.lat, st.twin.meta.center.lon, false, DATA + ref.twin.replace(/twin\.json$/, 'context.json.gz'))
     }).catch(e => setLoading('Could not load ' + ref.name + ': ' + e.message))
     return () => { live = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [siteId, sites, ready])
+  }, [siteId, sites, scene])
 
-  useEffect(() => { sceneRef.current?.setHourIndex(hourIdx) }, [hourIdx])
-  useEffect(() => { const s = sceneRef.current; if (s) Object.entries(layers).forEach(([k, v]) => s.setLayer(k as LayerKey, v)) }, [layers])
+  /* any place on Earth: map context now, a full twin on demand */
+  const openPlace = useCallback(async (p: Place) => {
+    const s = sceneRef.current
+    if (!s) return
+    setSite(null); setJunctions([]); setSel(null); setAnalysis(null); setModeState('explore'); setCloud(false); setSiteId(''); setPlace(p); setCtx(null); setLoading('')
+    s.clearSel(); s.clearProposals(); s.clearFx()
+    s.flyToLonLat(p.lon, p.lat)
+    const key = store.get('gkey')
+    if (key && !s.tilesOn) { const e = await s.setTiles(key); setTilesErr(e || '') }
+    liveWeather(p.lat, p.lon).then(setWeather)
+    loadCtx(s, p.lat, p.lon, true)
+  }, [loadCtx])
+  useEffect(() => {
+    const m = Q.get('place')?.match(/^(-?[\d.]+),(-?[\d.]+)$/)
+    if (scene && m) openPlace({ name: Q.get('name') || 'Selected place', lat: +m[1], lon: +m[2] })
+  }, [scene])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { scene?.setHourIndex(hourIdx) }, [hourIdx, scene])
+  useEffect(() => { if (scene) applyLayers(scene) }, [layers])   // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- the junction the modes work on ---------- */
   const selJ = sel?.kind === 'junction' ? junctions.find(j => j.id === sel.id) ?? null : null
@@ -92,7 +128,7 @@ export default function App() {
     sceneRef.current?.select(s)
     if (s?.kind === 'junction') { const j = junctions.find(x => x.id === s.id); if (j) sceneRef.current?.flyToJunction(j) }
   }, [junctions])
-  useEffect(() => { const s = sceneRef.current; if (s) { s.onPick = pick; s.onHover = setHover } }, [pick])
+  useEffect(() => { if (scene) scene.onPick = pick }, [pick, scene])
 
   const runAnalysis = useCallback(async (j: Junction) => {
     const s = sceneRef.current
@@ -110,6 +146,7 @@ export default function App() {
 
   const setMode = (m: Mode) => {
     const s = sceneRef.current
+    if (m !== 'explore' && !site) { setToast('Build a twin for this place first: Analyze, Simulate and Compare need the shade and traffic models.'); return }
     if (!s || !site) { setModeState(m); return }
     s.clearFx(); s.clearProposals(); setAnalysis(null)
     if (m !== 'explore' && activeJ && !selJ) { setSel({ kind: 'junction', id: activeJ.id }); s.select({ kind: 'junction', id: activeJ.id }); s.flyToJunction(activeJ) }
@@ -123,8 +160,7 @@ export default function App() {
     if (!s || !site || !activeJ) return
     if (mode !== 'simulate') { s.setStacks(site.stack, site.walk); return }
     s.proposals(activeJ, chosenRecs, proposed)
-    const trees = proposed && chosenRecs.some(r => r.kind === 'trees')
-    if (trees) loadScenarioGrids(site, 'trees').then(g => g && s.setStacks(g.stack, g.walk))
+    if (proposed && chosenRecs.some(r => r.kind === 'trees')) loadScenarioGrids(site, 'trees').then(g => g && s.setStacks(g.stack, g.walk))
     else s.setStacks(site.stack, site.walk)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, chosen, proposed, activeJ?.id, site])
@@ -135,13 +171,11 @@ export default function App() {
     else { if (r?.sol) recs.filter(x => x.sol).forEach(x => n.delete(x.id)); n.add(id) }   // one traffic fix at a time
     return n
   })
-
   const pickRec = (r: Rec) => {
     const s = sceneRef.current
     setChosen(new Set([r.id])); setProposed(true); setAnalysis(null); s?.clearFx(); setModeState('simulate')
     if (s && r.at) s.focus(r.at[0], r.at[1], r.kind === 'trees' || r.kind === 'ev' ? 420 : 200)
   }
-
   const previewRec = (r: Rec) => { const s = sceneRef.current; if (!s || !activeJ) return; s.proposals(activeJ, [r], true); s.focus(r.at[0], r.at[1], r.kind === 'trees' || r.kind === 'ev' ? 420 : 220) }
 
   const onKey = async (k: string) => {
@@ -150,12 +184,11 @@ export default function App() {
     if (!s) return
     setLoading(k ? 'Loading Google Photorealistic 3D Tiles…' : 'Switching to the dark open-data city…')
     const e = await s.setTiles(k); setTilesErr(e || ''); setLoading('')
-    Object.entries(layers).forEach(([kk, v]) => s.setLayer(kk as LayerKey, v))
+    applyLayers(s)
   }
+  const onBuilt = async (id: string) => { setSites(await loadIndex()); setPlace(null); setSiteId(id); setCloud(false) }
 
-  const onPlace = (p: Place) => { sceneRef.current?.flyToLonLat(p.lon, p.lat); setToast(`No twin here yet. Build one with: python -m streetscope build --lat ${p.lat.toFixed(4)} --lon ${p.lon.toFixed(4)} --radius 250 --name newsite --out web/data`) }
-
-  /* deep links for demos and screenshots: ?site=dupont&mode=analyze&cloud=1 */
+  /* deep links for demos and screenshots: ?site=dupont&mode=analyze&cloud=1, ?place=lat,lon */
   const linked = useRef(false)
   useEffect(() => {
     if (linked.current || !site || !junctions.length) return
@@ -165,20 +198,23 @@ export default function App() {
     if (m === 'analyze' && j) { setModeState('analyze'); runAnalysis(j) }
     else if (m === 'simulate' || m === 'compare') { if (j) { setSel({ kind: 'junction', id: j.id }); sceneRef.current?.select({ kind: 'junction', id: j.id }); sceneRef.current?.flyToJunction(j) } setChosen(defaultChoice(recommendations(site, j || junctions[0]))); setModeState(m) }
     else if (jid && j) pick({ kind: 'junction', id: j.id })
+    if (Q.get('layers') === 'all') setLayers(l => ({ ...l, hexmap: true, transit: true }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [site, junctions])
 
-  const tilesState = hasKey ? (sceneRef.current?.tilesOn ? 'Google Photorealistic 3D Tiles' : 'Tiles failed, dark open-data city') : 'Dark open-data city (no tiles key)'
+  const tilesState = hasKey ? (scene?.tilesOn ? 'Google Photorealistic 3D Tiles' : 'Tiles failed, dark open-data city') : 'Dark open-data city (no tiles key)'
+  const showSel = sel && (mode === 'explore' || !site)
 
   return (
     <div className="relative h-full w-full overflow-hidden">
       <CityViewport onReady={onReady} />
-      {site && !cloud && <>
-        {mode !== 'simulate' && <EnvStrip site={site} w={weather} hourIdx={hourIdx} setHourIdx={setHourIdx} />}
-        {mode === 'explore' && sel && <SelectionPanel site={site} sel={sel} junctions={junctions} hourIdx={hourIdx} onClose={() => { setSel(null); sceneRef.current?.select(null) }}
+      {!cloud && (site || ctx) && <>
+        {site && mode !== 'simulate' && <EnvStrip site={site} w={weather} hourIdx={hourIdx} setHourIdx={setHourIdx} />}
+        {mode !== 'simulate' && <AreaIntel ctx={ctx} site={site} />}
+        {showSel && <SelectionPanel site={site} ctx={ctx} sel={sel} junctions={junctions} hourIdx={hourIdx} onClose={() => { setSel(null); sceneRef.current?.select(null) }}
           onAnalyze={() => { setModeState('analyze'); if (selJ) runAnalysis(selJ) }} onSimulate={() => { setChosen(defaultChoice(recs)); setProposed(true); setModeState('simulate') }} />}
-        {mode === 'explore' && !sel && <Hint />}
-        {mode === 'analyze' && activeJ && (analysis
+        {site && mode === 'explore' && !sel && <Hint />}
+        {site && mode === 'analyze' && activeJ && (analysis
           ? <AnalysisPanel site={site} j={activeJ} state={analysis.state} found={analysis.found} recs={recs} onFocus={(x, z) => sceneRef.current?.focus(x, z)} onPickRec={pickRec} onClose={() => { setAnalysis(null); sceneRef.current?.clearFx() }} />
           : <div className="pointer-events-auto absolute bottom-[78px] left-1/2 z-10 -translate-x-1/2 text-center">
               <div className="label mb-2">Selected · {activeJ.name}</div>
@@ -186,17 +222,20 @@ export default function App() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="8" /><path d="M12 4v4M12 16v4M4 12h4M16 12h4" /></svg>Analyze Area</button>
               <div className="mt-2 text-[11.5px] text-dim">or click any junction on the map</div>
             </div>)}
-        {mode === 'simulate' && activeJ && <SimulationController recs={recs} chosen={chosen} toggle={toggleRec} proposed={proposed} setProposed={setProposed} metrics={metrics} junctionName={activeJ.name} />}
-        {mode === 'compare' && activeJ && <CompareView recs={recs} junctionName={activeJ.name} onPreview={previewRec} onClose={() => setMode('explore')} />}
+        {site && mode === 'simulate' && activeJ && <SimulationController recs={recs} chosen={chosen} toggle={toggleRec} proposed={proposed} setProposed={setProposed} metrics={metrics} junctionName={activeJ.name} />}
+        {site && mode === 'compare' && activeJ && <CompareView recs={recs} junctionName={activeJ.name} onPreview={previewRec} onClose={() => setMode('explore')} />}
         <LayerControl on={layers} toggle={k => setLayers(l => ({ ...l, [k]: !l[k] }))} />
-        <CameraDock heading={cam.h} mpp={cam.mpp} onPreset={(p: Preset) => sceneRef.current?.preset(p)} onNorth={() => sceneRef.current?.resetNorth()} />
+        <CameraDock scene={scene} onPreset={(p: Preset) => sceneRef.current?.preset(p)} />
+        {mode === 'explore' && !sel && <MiniMap scene={scene} site={site} ctx={ctx} />}
+        <HoverTip scene={scene} />
       </>}
       {site && cloud && <PointCloudViewer site={site} hourIdx={hourIdx} onClose={() => setCloud(false)} />}
-      <TopNav mode={mode} setMode={m => { if (cloud) setCloud(false); setMode(m) }} sites={sites} siteId={siteId} onSite={id => { setSiteId(id); setCloud(false) }} onPlace={onPlace}
-        status={{ tiles: tilesState, doctor, live: !!weather }} onSettings={() => setSettings(v => !v)} cloud={cloud} setCloud={setCloud} />
-      {settings && <SettingsPopover hasKey={hasKey} tilesErr={tilesErr} onKey={onKey} reduced={reduced} setReduced={setReduced} onClose={() => setSettings(false)} />}
-      {hover && !cloud && <div className="pointer-events-none absolute z-20 rounded-md bg-black/75 px-2 py-1 font-mono text-[11px] text-ink" style={{ left: hover.x + 14, top: hover.y + 14 }}>{hover.label}</div>}
-      {toast && <div className="glass rise-in pointer-events-auto absolute bottom-[78px] left-1/2 z-30 max-w-[640px] -translate-x-1/2 rounded-xl px-4 py-3 text-[12.5px]"><span className="text-ink">{toast}</span><button onClick={() => setToast('')} className="ml-3 text-dim hover:text-ink">×</button></div>}
+      <TopNav mode={mode} setMode={m => { if (cloud) setCloud(false); setMode(m) }} sites={sites} siteId={siteId} onSite={id => { setSiteId(id); setCloud(false) }} onPlace={openPlace}
+        status={{ tiles: tilesState, doctor, live: !!weather }} onSettings={() => setSettings(v => !v)} cloud={cloud} setCloud={v => { if (v && !site) { setToast('The point-cloud view needs a twin; build one for this place first.'); return } setCloud(v) }} placeName={place?.name} />
+      {settings && <SettingsPopover hasKey={hasKey} tilesErr={tilesErr} onKey={onKey} reduced={reduced} setReduced={setReduced} quality={quality} setQuality={setQualityState} lowPower={lowPower} onClose={() => setSettings(false)} />}
+      {place && !site && <BuildCard key={place.lat + ',' + place.lon} place={place} onClose={() => setPlace(null)} onDone={onBuilt} />}
+      {ctxStatus && <div className="glass pointer-events-none absolute left-1/2 top-[70px] z-20 -translate-x-1/2 rounded-full px-4 py-1.5 text-[12px] text-ink"><span className="mr-2 inline-block h-1.5 w-1.5 animate-ping rounded-full bg-cyan" />{ctxStatus}</div>}
+      {toast && <div className="glass rise-in pointer-events-auto absolute left-1/2 top-[70px] z-30 max-w-[640px] -translate-x-1/2 rounded-xl px-4 py-3 text-[12.5px]"><span className="text-ink">{toast}</span><button onClick={() => setToast('')} className="ml-3 text-dim hover:text-ink">×</button></div>}
       {loading && <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center"><div className="glass rise-in rounded-xl px-5 py-3 text-[13px] text-ink"><span className="mr-2 inline-block h-1.5 w-1.5 animate-ping rounded-full bg-cyan" />{loading}</div></div>}
     </div>
   )

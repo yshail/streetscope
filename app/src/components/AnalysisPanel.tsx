@@ -19,7 +19,7 @@ export function AnalysisPanel({ site, j, state, found, recs, onFocus, onPickRec,
   return (
     <div className="pointer-events-none absolute right-4 top-[72px] z-10 w-[392px]">
       <Panel kicker={state === 'scanning' ? 'Analyzing area…' : 'Area analysis · 160 m radius'} title={j.name} onClose={onClose}>
-        <div className="scroll-thin max-h-[calc(100vh-190px)] overflow-y-auto">
+        <div className="scroll-thin max-h-[calc(100vh-330px)] overflow-y-auto">
           {state === 'scanning' && <div className="px-5 py-5"><div className="scanbar h-[2px] rounded bg-cyan/20" /><div className="mt-3 text-[12.5px] text-dim">Reading roads, green space, transit stops and crossings around the junction…</div></div>}
           {state === 'done' && <>
             <div className="px-5 pt-3"><div className="label mb-2">Findings</div></div>

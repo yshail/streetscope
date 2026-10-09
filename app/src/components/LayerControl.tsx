@@ -13,6 +13,12 @@ export const LAYERS: { k: LayerKey; label: string; b: Basis; swatch: string }[] 
   { k: 'ev', label: 'EV charging', b: 'observed', swatch: '#34d399' },
   { k: 'widths', label: 'Road widths', b: 'observed', swatch: '#e2e8f0' },
   { k: 'buildings', label: 'Buildings', b: 'observed', swatch: '#1e3a4f' },
+  { k: 'context', label: 'Map detail: parks, water, rail, streets', b: 'observed', swatch: 'linear-gradient(90deg,#34d399,#3b82f6,#c4b5fd)' },
+  { k: 'poi', label: 'Places (health, schools, shops…)', b: 'observed', swatch: '#c084fc' },
+  { k: 'hexmap', label: 'Sun-exposure hex map', b: 'computed', swatch: 'linear-gradient(90deg,#34d399,#a3e635,#fbbf24,#fb7185)' },
+  { k: 'sunpath', label: 'Sun path over the site', b: 'computed', swatch: '#fbbf24' },
+  { k: 'pillars', label: 'Junction load pillars', b: 'simulated', swatch: '#fb923c' },
+  { k: 'compass', label: 'Bearing ring', b: 'computed', swatch: '#22d3ee' },
 ]
 
 export function LayerControl({ on, toggle }: { on: Record<LayerKey, boolean>; toggle: (k: LayerKey) => void }) {
@@ -20,7 +26,7 @@ export function LayerControl({ on, toggle }: { on: Record<LayerKey, boolean>; to
   return (
     <div className="pointer-events-auto absolute bottom-7 left-4 z-10">
       {open && (
-        <div className="glass rise-in mb-2 w-[272px] rounded-xl p-2">
+        <div className="glass rise-in scroll-thin mb-2 max-h-[64vh] w-[300px] overflow-y-auto rounded-xl p-2">
           {LAYERS.map(l => (
             <button key={l.k} onClick={() => toggle(l.k)} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-[7px] text-left text-[12.5px] hover:bg-white/5">
               <span className="h-[3px] w-4 flex-none rounded-full" style={{ background: l.swatch }} />

@@ -23,6 +23,12 @@ Built for the WeMakeDevs x AWS *Environmental Hacks* (Heat and Water track), Oct
 ![Simulate](docs/img/13-gc-simulate.jpg)
 ![Point cloud](docs/img/14-gc-pointcloud.jpg)
 
+**Any place on Earth.** Search a place name or type `lat, lon`. The city appears at once from OpenStreetMap: about a kilometre of buildings with heights, roads, parks, water, rail, street names and places (health, schools, food, shops, transit). An *Area intelligence* panel reads it: a radar of daily needs nearby, land cover, bus-stop coverage, tagged-height share and road kilometres. Then *Build a twin here* runs the full engine for that spot in the background (300, 500 or 800 m; a 500 m twin for MG Road, Bengaluru took 45 seconds) and opens it when ready. The local server (`scripts/dev_api.py`) does the building (`/build`) and caches map downloads (`/context`); the five demo sites keep their map detail in `web/data/<site>/context.json.gz`, so they never wait on Overpass.
+
+**3D infographics.** Junction load pillars (height = simulated peak load), a sun-exposure hex map of the walkways (share of daytime hours in direct sun), the sun's path over the site with the current hour and a sun ray, a bearing ring, numbered hot spots, road-width dimension lines, a live mini-map with the camera's view cone, a sun dial of walkway shade by hour, and a traffic-load histogram.
+
+**Speed.** Buildings, roads, trees, pillars and hexes are drawn as a few batched GPU primitives built a few hundred at a time; moving dots ride precomputed positions; labels re-project only when the camera moves; camera and hover updates never re-render the page. *Settings, Graphics* has Auto, High and Fast; Auto drops glow, anti-aliasing and part of the particles when the frame rate falls under 24.
+
 **Google Earth 3D:** open *Settings* (the gear), paste a Google Maps key with the Map Tiles API enabled, or a free Cesium ion token. The analysis then sits on Google Photorealistic 3D Tiles; overlay heights are sampled from the tiles so they sit on the real streets. A key saved in `earth.html` on the same server is reused. Without a key the app draws the city from open data on a dark Esri basemap, so it always works. The Google tiles are only displayed: every number comes from OpenStreetMap, LiDAR and the twin's own models, never from the tiles (measuring the tiles would break Google's terms).
 
 Rebuild the app after changing `app/src`: `cd app`, `npm install`, `npm run build` (writes `web/app`). Export LiDAR points for a US site: `set PYTHONPATH=pipeline` then `python -m streetscope.points --site web/data/dupont`.
@@ -121,7 +127,7 @@ python -m streetscope build --lat 28.5672 --lon 77.2100 --radius 300 --name aiim
 
 Inside the US the builder reads USGS LiDAR automatically (`--lidar off` to skip); elsewhere it reads the canopy map (`--no-canopy` to skip). Both are cached in the site folder. Add the site to `web/data/index.json` to see it in the viewer. Use `--tz` for the site's UTC offset and `--date` for the day to model. `python scripts/rebuild_sites.py --cached` rebuilds all five sample sites from their saved downloads.
 
-Tests (65):
+Tests (69):
 
 ```bash
 set PYTHONPATH=pipeline;agent

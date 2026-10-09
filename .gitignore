@@ -8,3 +8,6 @@ node_modules/
 cdk.out/
 .env
 *.key
+
+# map context downloaded for arbitrary places (cache)
+web/data/_context/

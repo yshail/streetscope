@@ -68,6 +68,7 @@ def build_site(args: argparse.Namespace) -> Path:
             print("canopy map skipped:", exc)
     day = date.fromisoformat(args.date)
     hours = list(range(6, 19))
+    print("computing hourly shade...", flush=True)
     stack, meta, walk2 = shade.compute(t, day, args.tz, hours)
     t["shade"] = meta
     gz = lambda b: gzip.compress(b, 6)

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 
 /* Keys stay in this browser (localStorage). Nothing is sent anywhere except to Google or Cesium ion to load the tiles. */
-export function SettingsPopover({ hasKey, tilesErr, onKey, reduced, setReduced, onClose }: {
-  hasKey: boolean; tilesErr: string; onKey: (k: string) => void; reduced: boolean; setReduced: (v: boolean) => void; onClose: () => void
+export function SettingsPopover({ hasKey, tilesErr, onKey, reduced, setReduced, quality, setQuality, lowPower, onClose }: {
+  hasKey: boolean; tilesErr: string; onKey: (k: string) => void; reduced: boolean; setReduced: (v: boolean) => void
+  quality: 'auto' | 'high' | 'low'; setQuality: (q: 'auto' | 'high' | 'low') => void; lowPower: boolean; onClose: () => void
 }) {
   const [k, setK] = useState('')
   return (
@@ -20,6 +21,10 @@ export function SettingsPopover({ hasKey, tilesErr, onKey, reduced, setReduced, 
         {tilesErr && <div className="mt-2 rounded-lg border border-coral/40 bg-coral/10 px-3 py-2 text-[12px] text-coral">Tiles did not load: {tilesErr}</div>}
         <p className="mt-2 text-[11px] leading-relaxed text-faint">The photoreal tiles are only displayed. Every number comes from OpenStreetMap, LiDAR and the twin's own models, never from the tiles.</p>
         <div className="hair my-3" />
+        <div className="mb-3 flex items-center justify-between text-[13px]">
+          <span>Graphics <span className="text-dim">{lowPower ? '(running light)' : '(full effects)'}</span></span>
+          <div className="seg">{(['auto', 'high', 'low'] as const).map(q => <button key={q} aria-pressed={quality === q} onClick={() => setQuality(q)}>{q === 'auto' ? 'Auto' : q === 'high' ? 'High' : 'Fast'}</button>)}</div>
+        </div>
         <button onClick={() => setReduced(!reduced)} className="flex w-full items-center justify-between text-[13px]">
           <span>Reduce motion <span className="text-dim">(no orbit, instant flights)</span></span>
           <span className="switch" role="switch" aria-checked={reduced} />

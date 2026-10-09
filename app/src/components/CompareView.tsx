@@ -30,7 +30,7 @@ export function CompareView({ recs, onPreview, onClose, junctionName }: { recs: 
           </svg>
         </div>
         <div className="hair mx-5 my-2" />
-        <div className="scroll-thin max-h-[34vh] overflow-y-auto pb-2">
+        <div className="scroll-thin max-h-[24vh] overflow-y-auto pb-2">
           {[...modelled, ...other].map(r => (
             <button key={r.id} onClick={() => onPreview(r)} className="grid w-full grid-cols-[1fr_auto] gap-x-3 px-5 py-2 text-left hover:bg-white/[.03]">
               <span className="text-[13px] text-white">{r.title}</span>
