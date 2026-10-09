@@ -89,6 +89,20 @@ def build_agent(site: T.Site, trace: list[dict], model_id: str | None = None, re
     return Agent(model=model, system_prompt=SYSTEM_PROMPT, tools=fns)
 
 
+def map_points(trace: list[dict]) -> list[dict]:
+    """Places on the map that the tools mentioned, so a 3D view can fly there."""
+    pts: list[dict] = []
+    for t in trace:
+        res = t["result"]
+        if t["tool"] == "sun_hotspots":
+            for i, sp in enumerate(res.get("spots", []), 1):
+                pts.append({"lat": sp["lat"], "lon": sp["lon"], "label": f"Sunny spot {i}: lit {sp['sun_hours']} of {sp['of_hours']} daytime hours"})
+        elif t["tool"] == "what_if_trees" and not pts:
+            for i, sp in enumerate(res.get("spots", [])[:6], 1):
+                pts.append({"lat": sp["lat"], "lon": sp["lon"], "label": f"Plant here {i}"})
+    return pts
+
+
 def ask(site: T.Site, question: str, model_id: str | None = None, region: str | None = None) -> dict:
     """Run the agent and check every number in its answer against what the tools returned."""
     trace: list[dict] = []
@@ -96,7 +110,7 @@ def ask(site: T.Site, question: str, model_id: str | None = None, region: str | 
     answer = str(agent(question))
     bad = unverified_numbers(answer, [t["result"] for t in trace], question)
     return {"answer": answer, "tools_called": [{"tool": t["tool"], "args": t["args"]} for t in trace],
-            "unverified_numbers": bad, "verified": not bad}
+            "unverified_numbers": bad, "verified": not bad, "map_points": map_points(trace)}
 
 
 # ---------- offline mode: no language model, same tools, plain templates ----------
@@ -144,4 +158,4 @@ def offline_answer(site: T.Site, question: str) -> dict:
     answer = "[offline mode, no language model] " + " ".join(parts)
     bad = unverified_numbers(answer, [t["result"] for t in trace], question)
     return {"answer": answer, "tools_called": [{"tool": t["tool"], "args": t["args"]} for t in trace],
-            "unverified_numbers": bad, "verified": not bad}
+            "unverified_numbers": bad, "verified": not bad, "map_points": map_points(trace)}

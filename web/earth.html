@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Streetscope Earth</title>
+<title>Streetscope on real 3D</title>
 <link href="https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -12,282 +12,487 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 var(--body);overflow:hidden}
 #cv{position:fixed;inset:0}
-.cesium-viewer-bottom{z-index:5}
-.panel{position:fixed;z-index:10;background:rgba(8,13,20,.92);border:1px solid var(--line2);padding:14px 16px;overflow-y:auto}
-#left{left:12px;top:12px;bottom:60px;width:330px;display:flex;flex-direction:column;gap:18px}
-#right{right:12px;top:12px;width:300px;display:flex;flex-direction:column;gap:12px}
-h1{margin:0;font:800 24px/1 var(--display);letter-spacing:.14em}
-h1 small{display:block;font:400 10px var(--mono);letter-spacing:.06em;color:var(--dim);margin-top:4px}
-h3{margin:0 0 8px;font:500 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.cesium-viewer-bottom{left:340px!important}
+.panel{position:fixed;z-index:10;background:rgba(8,13,20,.93);border:1px solid var(--line2);padding:14px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:18px}
+#left{left:12px;top:12px;bottom:12px;width:316px}
+#right{right:12px;top:12px;bottom:84px;width:340px}
+h1{margin:0;font:800 22px/1 var(--display);letter-spacing:.14em}
+h1 small{display:block;font:400 10px var(--mono);letter-spacing:.05em;color:var(--dim);margin-top:4px}
+h3{margin:0 0 8px;font:500 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between}
+h3 .sub{letter-spacing:.04em;text-transform:none;color:var(--faint)}
 .note{margin:6px 0 0;font-size:12px;color:var(--dim)}
 button{font:inherit;color:inherit}
-.btn{border:1px solid var(--line2);background:transparent;font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:9px 12px;cursor:pointer;border-radius:2px;text-align:left}
+.btn{border:1px solid var(--line2);background:transparent;font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:8px 11px;cursor:pointer}
 .btn:hover{border-color:var(--ice)}
 .btn.primary{background:var(--ice);color:#04070b;border-color:var(--ice)}
-.places{display:flex;flex-direction:column;gap:6px}
-.place b{display:block;font-weight:500;font-size:13.5px;letter-spacing:0;text-transform:none;font-family:var(--body)}
-.place small{color:var(--dim);font:400 11px var(--mono);letter-spacing:0;text-transform:none}
-input[type=text],input[type=password]{width:100%;background:#070c12;border:1px solid var(--line2);color:var(--ice);padding:8px 10px;font:400 13px var(--mono)}
+.btn[aria-pressed="true"]{border-color:var(--ice);background:rgba(214,239,255,.12)}
+input[type=text],input[type=password],select{width:100%;background:#070c12;border:1px solid var(--line2);color:var(--ice);padding:8px;font:400 13px var(--mono)}
 .row{display:flex;gap:6px}
-.layer{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:14px}
-.layer i{width:10px;height:10px;border-radius:50%;flex:none}
+.layer{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:14px}
+.layer i{width:10px;height:10px;border-radius:2px;flex:none}
 .sw{margin-left:auto;width:36px;height:20px;border-radius:10px;background:var(--line2);position:relative;border:0;cursor:pointer}
 .sw::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#8196ab;transition:left .18s}
 .sw[aria-checked="true"]{background:var(--blue)}.sw[aria-checked="true"]::after{left:18px;background:#fff}
-.kv div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13.5px}
-.kv div:first-child{border-top:0}.kv span{color:var(--dim)}.kv b{font-weight:600;font-variant-numeric:tabular-nums}
+.fix{border:1px solid var(--line2);background:transparent;text-align:left;padding:8px 10px;cursor:pointer;display:block;width:100%;margin-bottom:6px}
+.fix:hover{border-color:var(--faint)}.fix[aria-pressed="true"]{border-color:var(--ice);background:rgba(214,239,255,.07)}
+.fix b{display:block;font-weight:600;font-size:13.5px}.fix small{color:var(--dim);font-size:12px}
+.res table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.res td{padding:4px 0;border-top:1px solid var(--line)}.res td:last-child{text-align:right;font-variant-numeric:tabular-nums}.res td.up{color:var(--good)}
 .tag{display:inline-block;font:500 9px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border:1px solid currentColor;margin-left:6px}
-.t-m{color:var(--good)}.t-s{color:#ff9d3c}.t-a{color:#5aa9ff}
-#status{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:12;background:rgba(5,8,13,.88);border:1px solid var(--line2);padding:8px 14px;font:400 12px var(--mono);max-width:min(640px,90vw);text-align:center}
-#msg{position:fixed;inset:0;z-index:8;display:grid;place-items:center;pointer-events:none}
-#msg div{max-width:520px;text-align:center;color:var(--dim);padding:20px;font-size:15px}
-.steps{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--dim)}
-.steps li{margin:3px 0}
+.t-a{color:var(--warn)}.t-m{color:var(--good)}.t-e{color:#5aa9ff}
+.steps{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--dim)}.steps li{margin:3px 0}
 .steps code{font:400 11.5px var(--mono);color:var(--ice)}
 a{color:var(--ice)}
-.bad{color:var(--bad)}
-@media (max-width:900px){#left{width:auto;right:12px;bottom:auto;max-height:46vh}#right{display:none}}
+#bar{position:fixed;left:340px;right:364px;bottom:12px;z-index:10;background:rgba(8,13,20,.93);border:1px solid var(--line2);padding:10px 14px;display:flex;gap:12px 22px;align-items:center;flex-wrap:wrap}
+#bar label{display:flex;align-items:center;gap:10px;font:400 10px var(--mono);letter-spacing:.14em;color:var(--dim)}
+#bar output{font:500 14px var(--mono);color:var(--ice);min-width:100px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:220px;max-width:100%;height:22px;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:linear-gradient(90deg,#0e5a7a,#f4b942,#ff5b2e)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--ice);margin-top:-6px}
+#chips{position:fixed;left:340px;top:12px;z-index:10;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 720px)}
+.pchip{font:500 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#9fb4c8;background:rgba(5,8,13,.8);border:1px solid var(--line2);padding:5px 9px;cursor:default}
+.pchip.on{color:#04070b;background:var(--ice);border-color:var(--ice)}.pchip.done{color:#cfe0f0}
+#caption{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:9;width:min(620px,calc(100% - 760px));text-align:center;background:rgba(5,8,13,.82);border:1px solid var(--line2);padding:9px 14px;font-size:14px;opacity:0;transition:opacity .4s;pointer-events:none}
+#status{position:fixed;left:340px;top:52px;z-index:9;font:400 11px var(--mono);color:#cfe0f0;text-shadow:0 1px 6px #000;max-width:560px}
+#chart{width:100%;height:auto;display:block}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font:400 11px var(--mono);margin-top:6px}.legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px}
+#ans{font-size:13.5px;margin-top:10px;color:var(--ink)}#trace{font:400 11px var(--mono);color:var(--dim);margin-top:6px}
+.rules{font-size:12px;color:var(--dim)}
+@media (max-width:1100px){#right{display:none}#bar{right:12px}#chips{max-width:calc(100% - 360px)}#caption{width:min(560px,calc(100% - 380px))}}
+@media (max-width:760px){#left{width:auto;right:12px;bottom:auto;max-height:44vh}#bar,#chips,#caption,#status{left:12px}.cesium-viewer-bottom{left:0!important}}
 </style>
 </head>
 <body>
 <div id="cv"></div>
-<div id="msg"><div id="msgText">Paste a Cesium ion token (free) or a Google key on the left to load real Google Photorealistic 3D Tiles.</div></div>
+<div id="status">Starting...</div>
+<div id="chips"></div>
+<div id="caption"></div>
 
 <aside class="panel" id="left">
-  <h1>STREETSCOPE EARTH<small>real Google 3D Tiles + real OpenStreetMap data</small></h1>
-
-  <section id="keySec">
-    <h3>Access key</h3>
-    <p class="note" style="margin:0 0 8px"><b>No card needed:</b> make a free <a href="https://ion.cesium.com/signup" target="_blank" rel="noopener">Cesium ion</a> account, open Access Tokens, copy the default token (starts with <code>eyJ</code>) and paste it below. It streams the same Google tiles. Or paste a Google Maps API key.</p>
+  <h1>STREETSCOPE<small>analysis on real 3D</small></h1>
+  <section>
+    <h3>Site</h3>
+    <select id="site" aria-label="Site"></select>
+    <p class="note" id="siteNote"></p>
+  </section>
+  <section>
+    <h3>3D tiles <span class="sub" id="tileState">not loaded</span></h3>
     <div class="row"><input type="password" id="key" placeholder="Cesium ion token or Google key" autocomplete="off"><button class="btn primary" id="keyGo">Load</button></div>
-    <p class="note">Only if you use a Google key:</p>
-    <ol class="steps">
-      <li>Open <a href="https://console.cloud.google.com/apis/library/tile.googleapis.com" target="_blank" rel="noopener">Map Tiles API</a> and press Enable. Billing must be on.</li>
-      <li>Credentials, then Create API key. Restrict it to <code>Map Tiles API</code>.</li>
-      <li>Under website restrictions add <code>http://localhost:8765/*</code>.</li>
-      <li>Set a budget alert. Each page load of the 3D tiles counts as one root tile request.</li>
-    </ol>
-    <p class="note" id="keyState"></p>
     <div class="note" id="diag" style="display:none;border:1px solid var(--warn);padding:8px"></div>
-    <p class="note">This page runs at: <code id="origin"></code></p>
+    <p class="note">Without a key you get the flat OpenStreetMap map. Everything else works the same, so you can test now. <a href="#" id="help">How to get a key</a></p>
+    <ol class="steps" id="helpList" hidden>
+      <li><b>No card:</b> free account at <a href="https://ion.cesium.com/signup" target="_blank" rel="noopener">ion.cesium.com</a>, Access Tokens, copy the default token (starts with <code>eyJ</code>).</li>
+      <li><b>Or Google:</b> enable <a href="https://console.cloud.google.com/apis/library/tile.googleapis.com" target="_blank" rel="noopener">Map Tiles API</a>, make a key limited to that API and to <code>http://localhost:8765/*</code>, and set a budget alert.</li>
+    </ol>
   </section>
-
   <section>
-    <h3>Places</h3>
-    <div class="places" id="places"></div>
-    <div class="row" style="margin-top:8px"><input type="text" id="ll" placeholder="or type lat, lon  e.g. 28.5672, 77.2100"><button class="btn" id="llGo">Go</button></div>
-    <p class="note">3D coverage varies. If the ground looks flat or empty, pick another place.</p>
+    <h3>Cameras</h3>
+    <div class="row" style="flex-wrap:wrap">
+      <button class="btn" data-cam="overview">Overview</button><button class="btn" data-cam="top">Top-down</button>
+      <button class="btn" data-cam="walk">Street walk</button><button class="btn" data-cam="orbit" id="orbitBtn" aria-pressed="true">Orbit</button>
+    </div>
+    <div class="row" style="margin-top:8px"><button class="btn primary" id="play" style="flex:1">Play tour</button></div>
   </section>
-
+  <section><h3>Layers</h3><div id="layers"></div></section>
   <section>
-    <h3>Real data layers</h3>
-    <div id="layers"></div>
+    <h3>Try a fix <span class="sub">real shade maths</span></h3>
+    <div id="fixes"></div><div id="fixres" class="note res"></div>
   </section>
-
-  <section>
-    <h3>What OpenStreetMap knows here</h3>
-    <div class="kv" id="stats"><div><span>Pick a place first</span><b>-</b></div></div>
-    <p class="note" id="gaps"></p>
+  <section class="rules">
+    Google tiles are <b>display only</b>. Google's terms ban extracting geodata or running object detection on them. Every number here comes from OpenStreetMap, LiDAR, the canopy map or our shade maths, never from the tiles. Keep the Google attribution visible.
   </section>
 </aside>
 
 <aside class="panel" id="right">
-  <h3>Rules for this view</h3>
-  <p class="note" style="margin:0">Google 3D Tiles are <b>display only</b>. Google's terms ban extracting geodata or running object detection on them. Every number here comes from OpenStreetMap or from the simulator, never from the tiles.</p>
-  <p class="note" style="margin:0">Keep the Google attribution visible at the bottom.</p>
-  <button class="btn primary" id="twinBtn">Open the analysis twin</button>
-  <button class="btn" id="orbitBtn">Pause orbit</button>
+  <section>
+    <h3>Walkway shade <span class="sub" id="shadeSub"></span></h3>
+    <svg id="chart" viewBox="0 0 320 130" role="img" aria-label="Share of walkway in shade by hour"></svg>
+    <div class="legend"><span><i style="background:#ff8a2b"></i>sun</span><span><i style="background:#3fdc90"></i>tree shade</span><span><i style="background:#2a64d8"></i>building shade</span></div>
+    <p class="note" id="shadeNote"></p>
+  </section>
+  <section>
+    <h3>Ask the doctor <span class="sub">answers only from tools</span></h3>
+    <div class="row"><input type="text" id="q" placeholder="Where should we plant first?"><button class="btn" id="ask">Ask</button></div>
+    <div id="qs" class="row" style="flex-wrap:wrap;margin-top:8px"></div>
+    <div id="ans"></div><div id="trace"></div>
+  </section>
+  <section><h3>Data <span class="sub" id="lvl"></span></h3><div id="stats" class="note" style="margin:0"></div></section>
 </aside>
 
-<div id="status">Waiting for an access key.</div>
+<div id="bar">
+  <label>SUN <input id="hour" type="range" min="6" max="18" step="1" value="15" aria-label="Time of day"><output id="hourOut"></output></label>
+  <span id="hud" style="font:400 11px var(--mono);color:#cfe0f0"></span>
+</div>
 
 <script>window.CESIUM_BASE_URL='https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/';</script>
 <script src="https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/Cesium.js"></script>
+<script src="config.js"></script>
 <script>
 (function(){
 'use strict';
-const $=s=>document.querySelector(s);
-const PLACES=[
-  {n:'AIIMS junction, New Delhi',lat:28.5672,lon:77.2100,f:'aiims',s:'flyover, bus stops, metro nearby'},
-  {n:'Connaught Place, New Delhi',lat:28.6315,lon:77.2167,f:'cp',s:'circular market, heavy walking'},
-  {n:'Shibuya Crossing, Tokyo',lat:35.6595,lon:139.7005,f:'shibuya',s:'the busiest crossing, best 3D coverage'},
-  {n:'Times Square, New York',lat:40.7580,lon:-73.9855,f:'times',s:'USGS LiDAR also exists here'}
-];
-const CLASSES={
-  big:{c:'#ff9d3c',w:6,list:['motorway','trunk','primary','motorway_link','trunk_link','primary_link'],label:'Main roads'},
-  mid:{c:'#ffd24a',w:5,list:['secondary','tertiary','secondary_link','tertiary_link'],label:'Secondary roads'},
-  small:{c:'#35c6ff',w:3.5,list:['residential','unclassified','living_street','service'],label:'Local streets'},
-  walk:{c:'#b06aff',w:3,list:['footway','path','steps','pedestrian','cycleway','track'],label:'Footpaths and steps'}
-};
-const LAYERS=[['roads','Roads by class','#ff9d3c'],['trees','Mapped trees','#3dff9a'],['stops','Bus stops','#5aa9ff'],['cross','Crossings','#ffd24a'],['ev','EV chargers','#3dd6ff'],['sim','Simulated traffic','#ff9d3c']];
-const show={roads:true,trees:true,stops:true,cross:true,ev:true,sim:true};
-let viewer=null, tileset=null, ents={roads:[],trees:[],stops:[],cross:[],ev:[],sim:[]}, h0=0, orbit=true, heading=0, center=null, busy=false, pathsForSim=[];
+const $=(s,r=document)=>r.querySelector(s);
+const rad=Math.PI/180, EARTH=6371008.8;
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
 const status=t=>{$('#status').textContent=t};
-const getKey=()=>{try{return localStorage.getItem('gkey')||''}catch(e){return''}};
-const setKey=k=>{try{localStorage.setItem('gkey',k)}catch(e){}};
+const getKey=()=>{try{return localStorage.getItem('gkey')||''}catch(e){return''}}, setKey=k=>{try{localStorage.setItem('gkey',k)}catch(e){}};
+const CFG=window.STREETSCOPE||{api:'http://localhost:8766/ask',token:''};
 
+/* ---------- state ---------- */
+let viewer, tileset=null, tilesOn=false;
+let T=null, base='', shade=null, SH0=null, WK0=null, SH=null, WK=null, curSc=null, SCA={}, hour=15, F=null;
+let orbitOn=false, heading=0, orbitRange=520, orbitPitch=-38, center=null, h0=0, growth=1, overlayAlpha=1, runId=0, playing=false, walking=0, playingWalk=false;
+const layersOn={shade:true,walk:true,roads:true,trees:true,planned:true,bld:false,labels:true,traffic:true};
+const E={overlay:null,roads:[],trees:[],planned:[],bld:[],labels:[],traffic:[],pins:[]};
+let simPaths=[];
+
+/* ---------- frame: metres around the site (x east, z south) ---------- */
+function mkFrame(lat0,lon0){return{lat0:lat0,lon0:lon0,kx:Math.cos(lat0*rad)*rad*EARTH,kz:rad*EARTH}}
+const ll=(x,z)=>[F.lon0+x/F.kx,F.lat0-z/F.kz];
+const xz=(lon,lat)=>[(lon-F.lon0)*F.kx,-(lat-F.lat0)*F.kz];
+
+/* ---------- viewer ---------- */
 function makeViewer(){
-  viewer=new Cesium.Viewer('cv',{baseLayer:false,globe:false,animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,fullscreenButton:false,infoBox:false,selectionIndicator:false});
-  viewer.scene.skyAtmosphere.show=false;
-  viewer.scene.backgroundColor=Cesium.Color.fromCssColorString('#04070d');
+  viewer=new Cesium.Viewer('cv',{baseLayer:new Cesium.ImageryLayer(new Cesium.OpenStreetMapImageryProvider({url:'https://tile.openstreetmap.org/'})),
+    animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,fullscreenButton:false,infoBox:false,selectionIndicator:false});
+  viewer.scene.globe.depthTestAgainstTerrain=true;
+  viewer.scene.skyAtmosphere.show=true;
   viewer.clock.onTick.addEventListener(()=>{
-    if(orbit&&center){heading+=.0016;viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(center),new Cesium.HeadingPitchRange(heading,Cesium.Math.toRadians(-36),range))}
+    if(orbitOn&&center&&!playingWalk){heading+=.0014;viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(center),new Cesium.HeadingPitchRange(heading,orbitPitch*rad,orbitRange))}
   });
+  viewer.scene.canvas.addEventListener('pointerdown',()=>userTook());
 }
-let range=420;
+function release(){viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)}
+function setOrbit(on){orbitOn=on;$('#orbitBtn').setAttribute('aria-pressed',String(on));if(!on)release()}
+function userTook(){if(playing){runId++;playing=false;$('#play').textContent='Play tour'}walking++;playingWalk=false;if(orbitOn)setOrbit(false)}
 
+/* ---------- tiles ---------- */
 async function loadTiles(key){
   if(tileset){viewer.scene.primitives.remove(tileset);tileset=null}
-  status('Loading Google Photorealistic 3D Tiles...');
+  status('Loading photoreal 3D tiles...');
   try{
-    if(key.indexOf('eyJ')===0){Cesium.Ion.defaultAccessToken=key;Cesium.GoogleMaps.defaultApiKey=undefined;tileset=await Cesium.createGooglePhotorealistic3DTileset({onlyUsingWithGoogleGeocoder:true})}
+    if(key.indexOf('eyJ')===0){Cesium.Ion.defaultAccessToken=key;tileset=await Cesium.createGooglePhotorealistic3DTileset({onlyUsingWithGoogleGeocoder:true})}
     else tileset=await Cesium.createGooglePhotorealistic3DTileset({key:key,onlyUsingWithGoogleGeocoder:true});
-    viewer.scene.primitives.add(tileset);viewer.scene.skyAtmosphere.show=true;
-    $('#msg').style.display='none';
-    $('#keyState').innerHTML='Key loaded. <a href="#" id="forget">Forget key</a>';
-    $('#forget').onclick=e=>{e.preventDefault();setKey('');location.reload()};
-    status('Google 3D Tiles ready. Pick a place.');
+    viewer.scene.primitives.add(tileset); viewer.scene.globe.show=false; tilesOn=true;
+    $('#tileState').textContent='photoreal on'; $('#diag').style.display='none';
+    status('Photoreal 3D tiles ready.');
+    if(T){await sampleGround();rebuildAll()}
     return true;
   }catch(e){
-    $('#msg').style.display='grid';
-    $('#msgText').innerHTML='<span class="bad">Google refused the tiles.</span><br>For a Google key: Map Tiles API enabled, billing on, key allows <code>http://localhost:8765/*</code>. For a Cesium ion token: copy the whole token.<br><small>'+String(e.message||e).slice(0,200)+'</small>';
-    status('Tiles failed to load.');
-    diagnose(key);
+    tilesOn=false; viewer.scene.globe.show=true; $('#tileState').textContent='failed, using flat map';
+    status('Tiles failed to load. Showing the flat OpenStreetMap map.'); diagnose(key,e);
     return false;
   }
 }
-
-async function diagnose(key){
+async function diagnose(key,e){
   const box=$('#diag'); box.style.display='block';
-  const origin=location.origin+'/*';
-  if(key.indexOf('eyJ')===0){$('#msgText').innerHTML+='<br><br><b style="color:#ffb83d">Cesium ion token problem.</b> Copy the whole token from ion.cesium.com, Access Tokens.';box.innerHTML='<b>Cesium ion token problem.</b> Copy the whole token from ion.cesium.com, Access Tokens. This page runs at <code>'+location.origin+'</code>.';return}
-  box.innerHTML='Asking Google why...';
+  if(key.indexOf('eyJ')===0){box.innerHTML='<b>Cesium ion token problem.</b> Copy the whole token from ion.cesium.com, Access Tokens. This page runs at <code>'+location.origin+'</code>. '+String(e.message||e).slice(0,160);return}
   try{
-    const r=await fetch('https://tile.googleapis.com/v1/3dtiles/root.json?key='+encodeURIComponent(key));
-    const j=await r.json().catch(()=>({}));
-    if(r.ok){box.innerHTML='Google accepts this key from here. Reload the page and press Load again.';return}
-    const e=j.error||{}, d=(e.details||[]).find(x=>x.reason)||{}, why=d.reason||e.status||('HTTP '+r.status);
-    const fix={
-      API_KEY_HTTP_REFERRER_BLOCKED:'Website restriction does not match this page. Add exactly: <code>'+origin+'</code> (also try <code>'+location.origin+'/</code>), then wait 5 minutes.',
-      API_KEY_SERVICE_BLOCKED:'The key blocks Map Tiles API. Edit the key, API restrictions, tick Map Tiles API.',
-      SERVICE_DISABLED:'Enable Map Tiles API in the project that owns this key.',
-      API_KEY_INVALID:'Google does not know this key. Copy it again from Credentials, with no spaces.',
-      BILLING_DISABLED:'Billing is not linked to the project that owns this key.',
-      RATE_LIMIT_EXCEEDED:'Quota used up for now.'
-    }[d.reason]||'See the message below.';
-    box.innerHTML='<b>Google says: '+why+'</b><br>'+fix+'<br><small>This page runs at <code>'+location.origin+'</code>. '+String(e.message||'').replace(key,'[key]').slice(0,220)+'</small>';
-    $('#msgText').innerHTML+='<br><br><b style="color:#ffb83d">Google says: '+why+'</b><br>'+fix;
-  }catch(err){
-    box.innerHTML='Could not reach Google from this page ('+String(err.message||err)+'). If you are in a preview pane, open <code>http://localhost:8765/earth.html</code> in Chrome instead. This page runs at <code>'+location.origin+'</code>.';
-  }
+    const r=await fetch('https://tile.googleapis.com/v1/3dtiles/root.json?key='+encodeURIComponent(key)), j=await r.json().catch(()=>({}));
+    if(r.ok){box.textContent='Google accepts this key from here. Reload and press Load again.';return}
+    const er=j.error||{}, d=(er.details||[]).find(x=>x.reason)||{};
+    box.innerHTML='<b>Google says: '+(d.reason||er.status||('HTTP '+r.status))+'</b><br><small>Page origin: <code>'+location.origin+'</code>. '+String(er.message||'').replace(key,'[key]').slice(0,200)+'</small>';
+  }catch(err){box.textContent='Could not reach Google from this page ('+String(err.message||err)+').'}
+}
+async function sampleGround(){
+  h0=0; if(!tilesOn||!F)return;
+  try{const c=await viewer.scene.sampleHeightMostDetailed([Cesium.Cartographic.fromDegrees(F.lon0,F.lat0)]);if(c&&c[0]&&isFinite(c[0].height))h0=c[0].height}catch(e){}
 }
 
-/* ---------- OpenStreetMap ---------- */
-const MIRRORS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
-async function fetchOSM(lat,lon,r){
-  const q='[out:json][timeout:25];(way["highway"](around:'+r+','+lat+','+lon+');node["natural"="tree"](around:'+r+','+lat+','+lon+');node["highway"="bus_stop"](around:'+r+','+lat+','+lon+');node["highway"="crossing"](around:'+r+','+lat+','+lon+');node["amenity"="charging_station"](around:'+(r*2)+','+lat+','+lon+'););out geom;';
-  let last;
-  for(const u of MIRRORS){
-    try{const res=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!res.ok)throw new Error('HTTP '+res.status);return(await res.json()).elements||[]}catch(e){last=e}
-  }
-  throw last;
+/* ---------- data ---------- */
+async function gunz(url){const r=await fetch(url);if(!r.ok)throw new Error('missing '+url);const b=await r.arrayBuffer();if(!url.endsWith('.gz'))return b;return await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()}
+async function loadSite(path){
+  runId++; playing=false; $('#play').textContent='Play tour'; clearAll(); clearPins();
+  base='data/'+path.slice(0,path.lastIndexOf('/')+1);
+  T=await (await fetch('data/'+path)).json(); shade=T.shade; F=mkFrame(T.meta.center.lat,T.meta.center.lon);
+  SH=SH0=new Uint8Array(await gunz(base+shade.file)); WK=WK0=new Uint8Array(await gunz(base+shade.walk_file)); curSc=null; SCA={}; growth=1; overlayAlpha=1;
+  await sampleGround();
+  center=Cesium.Cartesian3.fromDegrees(F.lon0,F.lat0,h0);
+  const sl=$('#hour'); sl.min=shade.hours[0]; sl.max=shade.hours[shade.hours.length-1]; hour=15; sl.value=15;
+  rebuildAll(); buildFixes(); stats(); drawChart(); readout();
+  $('#siteNote').textContent='Centre '+F.lat0.toFixed(4)+', '+F.lon0.toFixed(4)+' · radius '+T.meta.radius_m+' m';
 }
-async function getOSM(p){
-  if(p.f){try{const r=await fetch('data/earth/'+p.f+'.json');if(r.ok)return(await r.json()).elements||[]}catch(e){}}
-  return fetchOSM(p.lat,p.lon,350);
-}
-const R_E=6371000, rad=Math.PI/180;
-function hav(a,b){const dl=(b.lat-a.lat)*rad,dn=(b.lon-a.lon)*rad,x=Math.sin(dl/2)**2+Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dn/2)**2;return 2*R_E*Math.asin(Math.sqrt(x))}
-function classOf(h){for(const k in CLASSES)if(CLASSES[k].list.indexOf(h)>=0)return k;return null}
-function clearOSM(){for(const k in ents){ents[k].forEach(e=>viewer.entities.remove(e));ents[k]=[]}pathsForSim=[]}
-function applyShow(){for(const k in ents)ents[k].forEach(e=>{e.show=show[k]})}
 
-function drawOSM(el){
-  const H=h0, st={len:{big:0,mid:0,small:0,walk:0},ways:0,width:0,lanes:0,oneway:0,trees:0,stops:0,cross:0,ev:0};
-  for(const e of el){
-    const t=e.tags||{};
-    if(e.type==='way'&&t.highway&&e.geometry){
-      const k=classOf(t.highway); if(!k)continue; st.ways++;
-      if(t.width)st.width++; if(t.lanes)st.lanes++; if(t.oneway)st.oneway++;
-      const pts=e.geometry.map(g=>({lat:g.lat,lon:g.lon})); let L=0; for(let i=1;i<pts.length;i++)L+=hav(pts[i-1],pts[i]); st.len[k]+=L;
-      const flat=[]; pts.forEach(p=>flat.push(p.lon,p.lat,H+2.2));
-      ents.roads.push(viewer.entities.add({polyline:{positions:Cesium.Cartesian3.fromDegreesArrayHeights(flat),width:CLASSES[k].w,material:new Cesium.PolylineGlowMaterialProperty({glowPower:.22,color:Cesium.Color.fromCssColorString(CLASSES[k].c)})}}));
-      if((k==='big'||k==='mid')&&L>70)pathsForSim.push({pts:pts,L:L});
-    } else if(e.type==='node'){
-      const pos=Cesium.Cartesian3.fromDegrees(e.lon,e.lat,H+(t.natural==='tree'?9:4));
-      if(t.natural==='tree'){st.trees++;ents.trees.push(viewer.entities.add({position:pos,point:{pixelSize:9,color:Cesium.Color.fromCssColorString('#3dff9a'),outlineColor:Cesium.Color.BLACK,outlineWidth:1,disableDepthTestDistance:1e6}}))}
-      else if(t.highway==='bus_stop'){st.stops++;ents.stops.push(viewer.entities.add({position:pos,point:{pixelSize:14,color:Cesium.Color.fromCssColorString('#5aa9ff'),outlineColor:Cesium.Color.WHITE,outlineWidth:2,disableDepthTestDistance:1e6},label:{text:t.name||'Bus stop',font:'13px sans-serif',fillColor:Cesium.Color.WHITE,outlineColor:Cesium.Color.BLACK,outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new Cesium.Cartesian2(0,-22),distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,900),disableDepthTestDistance:1e6}}))}
-      else if(t.highway==='crossing'){st.cross++;ents.cross.push(viewer.entities.add({position:pos,point:{pixelSize:8,color:Cesium.Color.fromCssColorString('#ffd24a'),outlineColor:Cesium.Color.BLACK,outlineWidth:1,disableDepthTestDistance:1e6}}))}
-      else if(t.amenity==='charging_station'){st.ev++;ents.ev.push(viewer.entities.add({position:pos,point:{pixelSize:14,color:Cesium.Color.fromCssColorString('#3dd6ff'),outlineColor:Cesium.Color.WHITE,outlineWidth:2,disableDepthTestDistance:1e6},label:{text:'EV charger',font:'13px sans-serif',fillColor:Cesium.Color.WHITE,outlineColor:Cesium.Color.BLACK,outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new Cesium.Cartesian2(0,-22),disableDepthTestDistance:1e6}}))}
-    }
+/* ---------- overlays on the 3D ---------- */
+const COL={main:'#ff9d3c',mid:'#ffd24a',local:'#35c6ff',walk:'#b06aff'}, WID={main:6,mid:5,local:3.5,walk:3};
+function clearAll(){for(const k in E){if(k==='overlay'){if(E.overlay)viewer.entities.remove(E.overlay);E.overlay=null}else{E[k].forEach(e=>viewer.entities.remove(e));E[k]=[]}}}
+function rebuildAll(){clearAll();buildOverlay();buildRoads();buildTrees();buildBuildings();buildLabels();buildTraffic();if(curSc)buildPlanned(curSc.trees_added);applyLayers()}
+const nearestHour=h=>{let b=0;shade.hours.forEach((v,i)=>{if(Math.abs(v-h)<Math.abs(shade.hours[b]-h))b=i});return b};
+function overlayCanvas(){
+  const n=shade.shape[1], c=document.createElement('canvas'); c.width=c.height=n; const ctx=c.getContext('2d'), img=ctx.createImageData(n,n), d=img.data;
+  const k=nearestHour(hour), per=n*n, bytes=SH.subarray(k*per,(k+1)*per);
+  const near=new Uint8Array(n*n);   // walkway cells plus one cell around them, so the strips read on photoreal 3D
+  for(let j=0;j<n;j++)for(let i=0;i<n;i++)if(WK[j*n+i]===1)for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const jj=j+dj,ii=i+di;if(jj>=0&&jj<n&&ii>=0&&ii<n)near[jj*n+ii]=1}
+  for(let j=0;j<n;j++)for(let i=0;i<n;i++){
+    const v=bytes[j*n+i], w=WK[j*n+i]===1, o=(j*n+i)*4;
+    if(layersOn.walk&&!near[j*n+i]){d[o+3]=0;continue}
+    const a=w?225:(near[j*n+i]?120:80);
+    if(v===255){d[o]=255;d[o+1]=138;d[o+2]=43;d[o+3]=a}else if(v===90){d[o]=63;d[o+1]=220;d[o+2]=144;d[o+3]=a}else if(v===0){d[o]=42;d[o+1]=100;d[o+2]=216;d[o+3]=a}else d[o+3]=0;
   }
-  addSim(); applyShow(); showStats(st);
+  ctx.putImageData(img,0,0); return c;
 }
-function pointAt(p,d){
-  let acc=0; for(let i=1;i<p.pts.length;i++){const a=p.pts[i-1],b=p.pts[i],l=hav(a,b);if(acc+l>=d){const f=(d-acc)/Math.max(l,1e-6);return Cesium.Cartesian3.fromDegrees(a.lon+(b.lon-a.lon)*f,a.lat+(b.lat-a.lat)*f,h0+3)}acc+=l}
-  const q=p.pts[p.pts.length-1];return Cesium.Cartesian3.fromDegrees(q.lon,q.lat,h0+3);
+const overlayMaterial=()=>new Cesium.ImageMaterialProperty({image:overlayCanvas(),transparent:true,color:new Cesium.CallbackProperty(()=>Cesium.Color.WHITE.withAlpha(overlayAlpha),false)});
+function buildOverlay(){
+  if(E.overlay)viewer.entities.remove(E.overlay);
+  const n=shade.shape[1], x0=shade.origin[0], z0=shade.origin[1], w=n*shade.cell_m, nw=ll(x0,z0), se=ll(x0+w,z0+w);
+  E.overlay=viewer.entities.add({rectangle:{coordinates:Cesium.Rectangle.fromDegrees(nw[0],se[1],se[0],nw[1]),material:overlayMaterial()}});
+  E.overlay.show=layersOn.shade;
 }
-function addSim(){
-  pathsForSim.sort((a,b)=>b.L-a.L);
-  pathsForSim.slice(0,4).forEach((p,pi)=>{
-    for(let k=0;k<9;k++){
-      const off=k*p.L/9, sp=7+((k*37+pi*11)%6), dir=(k%2)?1:-1;
-      ents.sim.push(viewer.entities.add({position:new Cesium.CallbackProperty(()=>{let d=(off+Date.now()/1000*sp*dir)%p.L;if(d<0)d+=p.L;return pointAt(p,d)},false),point:{pixelSize:8,color:Cesium.Color.fromCssColorString('#ff9d3c'),outlineColor:Cesium.Color.BLACK,outlineWidth:1,disableDepthTestDistance:1e6}}));
-    }
+function refreshOverlay(){if(E.overlay)E.overlay.rectangle.material=overlayMaterial()}
+function buildRoads(){
+  const order={main:0,mid:1,walk:2,local:3};
+  T.roads.filter(r=>r.pts.length>1&&!r.bridge).sort((a,b)=>order[a.cls]-order[b.cls]).slice(0,420).forEach(r=>{
+    const flat=[]; r.pts.forEach(p=>{const q=ll(p[0],p[1]);flat.push(q[0],q[1])});
+    E.roads.push(viewer.entities.add({polyline:{positions:Cesium.Cartesian3.fromDegreesArray(flat),width:WID[r.cls],clampToGround:true,material:Cesium.Color.fromCssColorString(COL[r.cls]).withAlpha(.85)}}));
   });
 }
-function showStats(s){
-  const km=x=>(x/1000).toFixed(2)+' km';
-  $('#stats').innerHTML=
-   '<div><span>Road ways <span class="tag t-m">OSM</span></span><b>'+s.ways+'</b></div>'+
-   '<div><span>Main roads</span><b>'+km(s.len.big)+'</b></div><div><span>Secondary roads</span><b>'+km(s.len.mid)+'</b></div>'+
-   '<div><span>Local streets</span><b>'+km(s.len.small)+'</b></div><div><span>Footpaths and steps</span><b>'+km(s.len.walk)+'</b></div>'+
-   '<div><span>Mapped trees <span class="tag t-m">OSM</span></span><b>'+s.trees+'</b></div><div><span>Bus stops</span><b>'+s.stops+'</b></div>'+
-   '<div><span>Crossings</span><b>'+s.cross+'</b></div><div><span>EV chargers (600 m)</span><b>'+s.ev+'</b></div>'+
-   '<div><span>Cars on screen <span class="tag t-s">simulated</span></span><b>'+ents.sim.length+'</b></div>';
-  const g=[];
-  if(s.ways)g.push('Only '+s.width+' of '+s.ways+' roads have a width tag and '+s.lanes+' have lanes.');
-  if(s.trees<10)g.push('OSM maps very few trees here. This is why the real build counts trees from a point cloud or a canopy map.');
-  $('#gaps').textContent=g.join(' ');
+function buildTrees(){
+  T.trees.slice(0,900).forEach(t=>{
+    const q=ll(t.x,t.z), osm=t.source==='osm';
+    E.trees.push(viewer.entities.add({position:Cesium.Cartesian3.fromDegrees(q[0],q[1],0),point:{pixelSize:6,color:Cesium.Color.fromCssColorString(osm?'#2e8b57':'#7bd36a'),outlineColor:Cesium.Color.BLACK,outlineWidth:1,
+      heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Number.POSITIVE_INFINITY,scaleByDistance:new Cesium.NearFarScalar(100,1.3,1500,.5)}}));
+  });
+}
+function buildPlanned(list){
+  E.planned.forEach(e=>viewer.entities.remove(e)); E.planned=[];
+  (list||[]).forEach(t=>{
+    const q=ll(t.x,t.z), cy=t.height_m-t.crown_r*.85, r=t.crown_r;
+    E.planned.push(viewer.entities.add({position:new Cesium.CallbackProperty(()=>Cesium.Cartesian3.fromDegrees(q[0],q[1],Math.max(.01,cy*growth)),false),
+      ellipsoid:{radii:new Cesium.CallbackProperty(()=>new Cesium.Cartesian3(Math.max(.01,r*growth),Math.max(.01,r*growth),Math.max(.01,r*.85*growth)),false),
+        material:Cesium.Color.fromCssColorString('#f2d04f').withAlpha(.95),heightReference:Cesium.HeightReference.RELATIVE_TO_GROUND}}));
+    E.planned.push(viewer.entities.add({position:new Cesium.CallbackProperty(()=>Cesium.Cartesian3.fromDegrees(q[0],q[1],Math.max(.01,cy*growth/2)),false),
+      cylinder:{length:new Cesium.CallbackProperty(()=>Math.max(.01,cy*growth),false),topRadius:.22,bottomRadius:.32,material:Cesium.Color.fromCssColorString('#6b5a46'),heightReference:Cesium.HeightReference.RELATIVE_TO_GROUND}}));
+  });
+  E.planned.forEach(e=>{e.show=layersOn.planned});
+}
+function buildBuildings(){
+  T.buildings.slice(0,320).forEach(b=>{
+    const flat=[]; b.footprint.forEach(p=>{const q=ll(p[0],p[1]);flat.push(q[0],q[1])});
+    const measured=b.height_source!=='default', col=measured?'#58c8ff':'#c9a98a';
+    E.bld.push(viewer.entities.add({polygon:{hierarchy:Cesium.Cartesian3.fromDegreesArray(flat),height:h0,extrudedHeight:h0+b.height_m,
+      material:Cesium.Color.fromCssColorString(col).withAlpha(.16),outline:true,outlineColor:Cesium.Color.fromCssColorString(col).withAlpha(.9)}}));
+  });
+}
+function mid(pts){let L=0;for(let i=1;i<pts.length;i++)L+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);let d=L/2;for(let i=1;i<pts.length;i++){const l=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);if(d<=l){const f=d/Math.max(l,1e-6);return[pts[i-1][0]+(pts[i][0]-pts[i-1][0])*f,pts[i-1][1]+(pts[i][1]-pts[i-1][1])*f]}d-=l}return pts[0]}
+function label(x,z,text,css){
+  const q=ll(x,z);
+  return viewer.entities.add({position:Cesium.Cartesian3.fromDegrees(q[0],q[1],0),label:{text:text,font:'600 13px Hanken Grotesk, sans-serif',fillColor:Cesium.Color.WHITE,showBackground:true,backgroundColor:Cesium.Color.fromCssColorString(css||'#0a1220').withAlpha(.85),
+    backgroundPadding:new Cesium.Cartesian2(8,5),pixelOffset:new Cesium.Cartesian2(0,-20),heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Number.POSITIVE_INFINITY,
+    distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,1300)}});
+}
+function buildLabels(){
+  const named=T.roads.filter(r=>r.name&&r.cls!=='walk').sort((a,b)=>b.pts.length-a.pts.length), seen=new Set();
+  for(const r of named){if(seen.has(r.name)||seen.size>=6)continue;seen.add(r.name);const m=mid(r.pts);E.labels.push(label(m[0],m[1],r.name+' · '+r.width_m+' m '+({osm_width:'(OSM width)',lanes:'(from lanes)',default:'(default)'}[r.width_source]),'#7a4a0a'))}
+  T.stops.slice(0,12).forEach(s=>E.labels.push(label(s.x,s.z,s.name||'Bus stop','#1b4fb0')));
+  T.ev.slice(0,4).forEach(s=>E.labels.push(label(s.x,s.z,'EV charger','#0e6a7a')));
+}
+function roadAt(p,d){for(let i=1;i<p.c.length;i++)if(d<=p.c[i]){const f=(d-p.c[i-1])/Math.max(1e-6,p.c[i]-p.c[i-1]);return{x:p.pts[i-1][0]+(p.pts[i][0]-p.pts[i-1][0])*f,z:p.pts[i-1][1]+(p.pts[i][1]-p.pts[i-1][1])*f,b:Math.atan2(p.pts[i][0]-p.pts[i-1][0],-(p.pts[i][1]-p.pts[i-1][1]))}}return null}
+function buildTraffic(){
+  simPaths=T.roads.filter(r=>(r.cls==='main'||r.cls==='mid')&&r.pts.length>1&&!r.bridge).map(r=>{let L=0;const c=[0];for(let i=1;i<r.pts.length;i++){L+=Math.hypot(r.pts[i][0]-r.pts[i-1][0],r.pts[i][1]-r.pts[i-1][1]);c.push(L)}return{pts:r.pts,c:c,L:L}}).filter(p=>p.L>70).sort((a,b)=>b.L-a.L).slice(0,4);
+  simPaths.forEach((p,pi)=>{for(let k=0;k<8;k++){const off=k*p.L/8,sp=7+((k*37+pi*11)%6),dir=(k%2)?1:-1;
+    E.traffic.push(viewer.entities.add({position:new Cesium.CallbackProperty(()=>{let d=(off+Date.now()/1000*sp*dir)%p.L;if(d<0)d+=p.L;const q=roadAt(p,d)||{x:0,z:0},g=ll(q.x,q.z);return Cesium.Cartesian3.fromDegrees(g[0],g[1],0)},false),
+      point:{pixelSize:7,color:Cesium.Color.fromCssColorString('#ff9d3c'),outlineColor:Cesium.Color.BLACK,outlineWidth:1,heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Number.POSITIVE_INFINITY}}))}});
+}
+function applyLayers(){
+  if(E.overlay)E.overlay.show=layersOn.shade;
+  E.roads.forEach(e=>e.show=layersOn.roads); E.trees.forEach(e=>e.show=layersOn.trees); E.planned.forEach(e=>e.show=layersOn.planned);
+  E.bld.forEach(e=>e.show=layersOn.bld); E.labels.forEach(e=>e.show=layersOn.labels); E.traffic.forEach(e=>e.show=layersOn.traffic);
+}
+const LAYERS=[['shade','Sun and shade overlay','#ff8a2b'],['walk','Overlay on walkways only','#b9b4aa'],['roads','Roads by class','#ff9d3c'],['trees','Trees (OSM + canopy or LiDAR)','#7bd36a'],['planned','Planned trees','#f2d04f'],['bld','Measured building heights','#58c8ff'],['labels','Labels','#c98a12'],['traffic','Simulated traffic','#ff9d3c']];
+$('#layers').innerHTML=LAYERS.map(l=>'<div class="layer"><i style="background:'+l[2]+'"></i><span>'+l[1]+'</span><button class="sw" data-k="'+l[0]+'" role="switch" aria-checked="'+layersOn[l[0]]+'" aria-label="'+l[1]+'"></button></div>').join('');
+$('#layers').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;const k=b.dataset.k;layersOn[k]=!layersOn[k];b.setAttribute('aria-checked',String(layersOn[k]));if(k==='walk')refreshOverlay();applyLayers()};
+function syncLayers(){document.querySelectorAll('#layers .sw').forEach(b=>b.setAttribute('aria-checked',String(layersOn[b.dataset.k])))}
+
+/* ---------- sun, chart, readouts ---------- */
+function readout(){
+  const k=nearestHour(hour), sun=shade.sun[k], pct=(curSc?curSc.walk_shade_pct:shade.walk_shade_pct)[k];
+  $('#hourOut').textContent=String(Math.round(hour)).padStart(2,'0')+':00 sun '+Math.round(sun.el)+'°';
+  $('#hud').innerHTML='walkway in shade <b style="color:#fff">'+(pct==null?'night':pct+'%')+'</b>';
+}
+function drawChart(){
+  const pts=shade.walk_shade_pct, hs=shade.hours, L=8,Rr=312,Tp=10,B=104, X=v=>L+(v-hs[0])/(hs[hs.length-1]-hs[0])*(Rr-L), Y=v=>B-(v/100)*(B-Tp);
+  let s=''; [0,50,100].forEach(v=>{s+='<line x1="'+L+'" x2="'+Rr+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="#16232f"/><text x="'+Rr+'" y="'+(Y(v)-3)+'" text-anchor="end" fill="#46586a" font-size="9" font-family="monospace">'+v+'%</text>'});
+  hs.forEach((v,i)=>{if(i%3===0)s+='<text x="'+X(v)+'" y="122" text-anchor="middle" fill="#8196ab" font-size="9.5" font-family="monospace">'+String(v).padStart(2,'0')+'</text>'});
+  const mk=a=>hs.map((v,i)=>a[i]==null?null:X(v).toFixed(1)+','+Y(a[i]).toFixed(1)).filter(Boolean).join(' ');
+  if(curSc)s+='<polyline points="'+mk(pts)+'" fill="none" stroke="#8196ab" stroke-width="1.4" stroke-dasharray="4 3"/><polyline points="'+mk(curSc.walk_shade_pct)+'" fill="none" stroke="#3ddc97" stroke-width="2.2"/>';
+  else s+='<polyline points="'+mk(pts)+'" fill="none" stroke="#3ddc97" stroke-width="2"/>';
+  s+='<line x1="'+X(hour)+'" x2="'+X(hour)+'" y1="'+Tp+'" y2="'+B+'" stroke="#ff9d3c"/>';
+  $('#chart').innerHTML=s;
+  const src=curSc?curSc.walk_shade_pct:pts, valid=src.filter(v=>v!=null), mid12=src[hs.indexOf(12)];
+  $('#shadeNote').textContent=(curSc?'With this fix, midday: ':'Midday: ')+(mid12==null?'-':mid12+'%')+' of the walkway is in shade. Best hour '+Math.max(...valid)+'%. Real sun position on '+shade.date+'.';
+  $('#shadeSub').textContent=shade.walk_cells+' walkway cells';
+}
+function stats(){
+  const s=T.stats; $('#lvl').textContent=T.meta.data_level===1?'level 1, LiDAR':'level 3, open data';
+  $('#stats').innerHTML=s.road_ways+' road ways, '+s.buildings+' buildings, <b>'+s.trees+'</b> trees <span class="tag t-e">estimated</span>'+(s.canopy?', '+s.canopy.canopy_cover_pct+'% canopy':'')+'.<br>'+s.gaps.map(g=>'<span style="color:var(--warn)">'+g+'</span>').join('<br>');
+}
+function setHour(h){hour=h;$('#hour').value=h;refreshOverlay();readout();drawChart()}
+$('#hour').addEventListener('input',e=>{userTook();setHour(+e.target.value)});
+
+/* ---------- fixes ---------- */
+const money=n=>n>=1e7?(n/1e7).toFixed(1)+' crore':(n>=1e5?(n/1e5).toFixed(1)+' lakh':Math.round(n).toLocaleString('en-IN'));
+function buildFixes(){
+  const host=$('#fixes'); host.innerHTML='';
+  [{id:'today',name:'Today',sub:'as mapped'}].concat((T.scenarios||[]).map(x=>({id:x.id,name:x.name,sub:'day-mean shade '+x.baseline_day_mean_shade_pct+'% to '+x.day_mean_shade_pct+'%'}))).forEach((f,i)=>{
+    const b=document.createElement('button');b.className='fix';b.dataset.id=f.id;b.setAttribute('aria-pressed',i===0);b.innerHTML='<b>'+f.name+'</b><small>'+f.sub+'</small>';b.onclick=()=>{userTook();chooseFix(f.id)};host.appendChild(b)});
+  $('#fixres').innerHTML='Pick a fix. Trees grow on the real 3D and the shade overlay changes.';
+}
+function tween(ms,fn,id){return new Promise(res=>{const t0=performance.now();(function step(now){if(id!==-1&&id!==runId){res(false);return}const t=clamp((now-t0)/ms,0,1);fn(t);if(t<1)requestAnimationFrame(step);else res(true)})(t0)})}
+async function chooseFix(id){
+  document.querySelectorAll('.fix').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.id===id)));
+  if(id==='today'){
+    if(!curSc)return;
+    await tween(300,t=>{overlayAlpha=1-t},-1); curSc=null;SH=SH0;WK=WK0; E.planned.forEach(e=>viewer.entities.remove(e));E.planned=[]; refreshOverlay();
+    await tween(300,t=>{overlayAlpha=t},-1); readout();drawChart(); $('#fixres').textContent='Today, as mapped.'; return;
+  }
+  const sc=T.scenarios.find(x=>x.id===id); if(!sc)return;
+  if(!SCA[id])SCA[id]={SH:new Uint8Array(await gunz(base+sc.files.shade)),WK:new Uint8Array(await gunz(base+sc.files.walk))};
+  await tween(250,t=>{overlayAlpha=1-t},-1);
+  curSc=sc;SH=SCA[id].SH;WK=SCA[id].WK; growth=0; buildPlanned(sc.trees_added); refreshOverlay();
+  tween(1600,t=>{overlayAlpha=t;growth=t*t*(3-2*t)},-1);
+  const up=(a,b)=>b>a?' class="up"':'';
+  $('#fixres').innerHTML='<b style="color:var(--ink)">'+sc.name+'</b><br>'+sc.why+'<table>'+
+   '<tr><td>Day-mean walkway shade</td><td'+up(sc.baseline_day_mean_shade_pct,sc.day_mean_shade_pct)+'>'+sc.baseline_day_mean_shade_pct+'% to '+sc.day_mean_shade_pct+'%</td></tr>'+
+   '<tr><td>Shaded walking area</td><td'+up(sc.baseline_shaded_walk_m2_day_mean,sc.shaded_walk_m2_day_mean)+'>'+sc.baseline_shaded_walk_m2_day_mean.toLocaleString()+' to '+sc.shaded_walk_m2_day_mean.toLocaleString()+' m²</td></tr>'+
+   '<tr><td>Trees planted</td><td>'+sc.trees_added.length+'</td></tr><tr><td>New footpath</td><td>'+sc.extra_walk_m2.toLocaleString()+' m²</td></tr>'+
+   '<tr><td>Cost <span class="tag t-a">assumed</span></td><td>₹ '+money(sc.cost_inr)+'</td></tr></table><div class="note">'+sc.assumptions+'. '+sc.cost_basis+'</div>';
+  readout();drawChart();
 }
 
-/* ---------- fly ---------- */
-const flyP=fn=>new Promise(res=>fn(res));
-async function go(p){
-  if(busy||!viewer)return; busy=true; orbit=false; center=null; clearOSM(); $('#stats').innerHTML='<div><span>Loading...</span><b>-</b></div>'; $('#gaps').textContent='';
+/* ---------- hotspots (sunniest walkway blocks) ---------- */
+function hotspots(top){
+  const n=shade.shape[1], per=n*n, cell=shade.cell_m, idx=shade.sun.map((s,k)=>s.el>15?k:-1).filter(k=>k>=0), bs=Math.max(1,Math.round(16/cell)), out=[];
+  for(let bj=0;bj+bs<=n;bj+=bs)for(let bi=0;bi+bs<=n;bi+=bs){
+    let cnt=0,sum=0,sx=0,sz=0;
+    for(let j=bj;j<bj+bs;j++)for(let i=bi;i<bi+bs;i++){if(WK[j*n+i]!==1)continue;cnt++;sx+=i;sz+=j;let c=0;for(const k of idx)if(SH[k*per+j*n+i]===255)c++;sum+=c}
+    if(cnt<6)continue;
+    out.push({score:sum/cnt*Math.sqrt(cnt),sun:sum/cnt,x:shade.origin[0]+(sx/cnt+.5)*cell,z:shade.origin[1]+(sz/cnt+.5)*cell});
+  }
+  out.sort((a,b)=>b.score-a.score); const pick=[];
+  for(const o of out){if(pick.every(p=>Math.hypot(p.x-o.x,p.z-o.z)>24))pick.push(o);if(pick.length>=top)break}
+  return pick.map(p=>({x:p.x,z:p.z,sun:p.sun,of:idx.length}));
+}
+function clearPins(){E.pins.forEach(e=>viewer.entities.remove(e));E.pins=[]}
+function pin(x,z,text){
+  const q=ll(x,z);
+  E.pins.push(viewer.entities.add({position:Cesium.Cartesian3.fromDegrees(q[0],q[1],0),point:{pixelSize:16,color:Cesium.Color.fromCssColorString('#ff5b2e'),outlineColor:Cesium.Color.WHITE,outlineWidth:3,heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Number.POSITIVE_INFINITY},
+    label:{text:text,font:'600 13px Hanken Grotesk, sans-serif',fillColor:Cesium.Color.WHITE,showBackground:true,backgroundColor:Cesium.Color.fromCssColorString('#a83210').withAlpha(.92),backgroundPadding:new Cesium.Cartesian2(8,5),pixelOffset:new Cesium.Cartesian2(0,-30),heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Number.POSITIVE_INFINITY}}));
+}
+
+/* ---------- cameras ---------- */
+function flyView(lon,lat,h,o){
+  o=o||{}; release();setOrbit(false);
+  return new Promise(res=>viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(lon,lat,h),orientation:{heading:(o.heading||0)*rad,pitch:(o.pitch==null?-45:o.pitch)*rad,roll:0},duration:o.duration||3,complete:()=>res(true),cancel:()=>res(false)}));
+}
+function flyTarget(x,z,range,hd,pitch,duration){
+  release();setOrbit(false);
+  const g=ll(x,z), c=Cesium.Cartesian3.fromDegrees(g[0],g[1],h0);
+  return new Promise(res=>viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(c,1),{offset:new Cesium.HeadingPitchRange(hd*rad,pitch*rad,range),duration:duration,complete:()=>res(true),cancel:()=>res(false)}));
+}
+function startOrbit(range,pitch){
+  release();center=Cesium.Cartesian3.fromDegrees(F.lon0,F.lat0,h0);orbitRange=range;orbitPitch=pitch;heading=viewer.camera.heading||0;setOrbit(true);
+}
+async function camPreset(name){
+  userTook();
+  if(name==='overview'){await flyTarget(0,0,560,heading/rad,-38,2.4);startOrbit(560,-38)}
+  else if(name==='top'){await flyTarget(0,0,640,0,-90,2.4)}
+  else if(name==='orbit'){startOrbit(orbitRange,orbitPitch)}
+  else if(name==='walk'){walkRoad()}
+}
+async function walkRoad(){
+  const id=++walking, road=simPaths[0]; if(!road)return;
+  playingWalk=true; setOrbit(false); release();
+  const prevAlpha=overlayAlpha; overlayAlpha=.3;   // at eye height the overlay is a carpet, so keep it subtle
+  const eye=h0+5, spd=7, maxd=Math.min(road.L,200); let dist=0, last=performance.now();
+  await new Promise(res=>{(function step(now){
+    if(id!==walking||!playingWalk){res();return}
+    dist+=(now-last)/1000*spd; last=now; const p=roadAt(road,dist);
+    if(!p||dist>maxd){res();return}
+    const g=ll(p.x,p.z);
+    viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(g[0],g[1],eye),orientation:{heading:p.b,pitch:-8*rad,roll:0}});
+    requestAnimationFrame(step)})(last)});
+  overlayAlpha=prevAlpha;
+  if(id===walking)playingWalk=false;
+}
+
+/* ---------- tour ---------- */
+const PH=['Fly in','Roads','Shade','Hotspots','Fix','Walk'];
+function caption(t){const c=$('#caption');c.style.opacity=0;setTimeout(()=>{c.textContent=t;c.style.opacity=t?1:0},200)}
+function setPhase(i,t){[...$('#chips').children].forEach((b,k)=>b.className='pchip'+(k===i?' on':(k<i?' done':'')));caption(t)}
+$('#chips').innerHTML=PH.map(p=>'<span class="pchip">'+p+'</span>').join('');
+async function tour(){
+  const id=++runId; playing=true; $('#play').textContent='Stop tour'; clearPins(); setOrbit(false); playingWalk=false; walking++;
+  const ok=async p=>{const r=await p;return r&&id===runId};
+  layersOn.shade=false;layersOn.roads=false;layersOn.labels=false;layersOn.trees=false;layersOn.traffic=false;syncLayers();applyLayers();
+  await chooseFix('today'); setHour(9);
+  setPhase(0,tilesOn?'Real photoreal 3D. Everything on top is our own data and maths.':'Flat map mode. Add a key on the left to see this on photoreal 3D.');
+  release(); viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(F.lon0,F.lat0,9000000)});
+  if(!await ok(flyView(F.lon0,F.lat0,2600,{pitch:-90,duration:6})))return;
+  setPhase(1,'Roads coloured by class, with widths from OpenStreetMap and where each width came from.');
+  layersOn.roads=true;layersOn.labels=true;layersOn.traffic=true;syncLayers();applyLayers();
+  if(!await ok(flyTarget(0,0,520,20,-35,3.5)))return;
+  startOrbit(520,-35); if(!await ok(tween(5500,()=>{},id)))return;
+  setPhase(2,'Real sun position. Orange is walkway in direct sun, green is tree shade, blue is building shade.');
+  layersOn.shade=true;layersOn.trees=true;syncLayers();applyLayers();
+  if(!await ok(flyTarget(0,0,640,0,-90,2.5)))return;
+  if(!await ok(tween(6000,t=>setHour(Math.round(9+6*t)),id)))return;
+  setPhase(3,'The sunniest walkway stretches, found from the shade maths.');
+  const hs=hotspots(3); clearPins();
+  for(let i=0;i<hs.length;i++){
+    pin(hs[i].x,hs[i].z,'Sunny spot '+(i+1)+': lit '+hs[i].sun.toFixed(1)+' of '+hs[i].of+' daytime hours');
+    if(!await ok(flyTarget(hs[i].x,hs[i].z,170,25+i*60,-42,2.4)))return; if(!await ok(tween(1500,()=>{},id)))return;
+  }
+  clearPins();
+  const trees=T.scenarios&&T.scenarios.find(x=>x.id==='trees');
+  if(trees){
+    setPhase(4,'Plant '+trees.trees_added.length+' street trees on those spots. Day-mean walkway shade '+trees.baseline_day_mean_shade_pct+'% to '+trees.day_mean_shade_pct+'%.');
+    if(!await ok(flyTarget(0,0,440,60,-38,2.6)))return;
+    await chooseFix('trees'); document.querySelectorAll('.fix').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.id==='trees')));
+    startOrbit(440,-38); if(!await ok(tween(7000,()=>{},id)))return;
+  }
+  setPhase(5,'Street level. Walk the main road and see the trees and shade at eye height.');
+  await camPreset('walk');
+  if(id===runId||true){setPhase(-1,'');playing=false;$('#play').textContent='Play tour';await flyTarget(0,0,520,0,-38,2.4);startOrbit(520,-38)}
+}
+$('#play').onclick=()=>{if(playing){userTook()}else tour()};
+document.querySelectorAll('[data-cam]').forEach(b=>b.onclick=()=>camPreset(b.dataset.cam));
+
+/* ---------- doctor ---------- */
+['Where should we plant first?','How shaded is the walkway at noon?','Tell me about this place'].forEach(t=>{const b=document.createElement('button');b.className='btn';b.style.cssText='font-size:11px;text-transform:none';b.textContent=t;b.onclick=()=>{$('#q').value=t;ask()};$('#qs').appendChild(b)});
+async function ask(){
+  const q=$('#q').value.trim(); if(!q)return; $('#ans').textContent='Thinking...'; $('#trace').textContent='';
   try{
-    const cam=viewer.camera;
-    cam.setView({destination:Cesium.Cartesian3.fromDegrees(p.lon,p.lat,9000000)});
-    status('Flying in from space: '+p.n);
-    await flyP(done=>cam.flyTo({destination:Cesium.Cartesian3.fromDegrees(p.lon,p.lat,2400),orientation:{heading:0,pitch:Cesium.Math.toRadians(-85),roll:0},duration:5,complete:done,cancel:done}));
-    h0=0;
-    try{const c=await viewer.scene.sampleHeightMostDetailed([Cesium.Cartographic.fromDegrees(p.lon,p.lat)]);if(c&&c[0]&&isFinite(c[0].height))h0=c[0].height}catch(e){}
-    status(p.f?'Reading saved OpenStreetMap data (downloaded 9 Oct 2026)...':'Asking OpenStreetMap live. This can be slow or refused...');
-    const el=await getOSM(p);
-    drawOSM(el);
-    status('Diving to the junction. Drag to look around, wheel to zoom.');
-    center=Cesium.Cartesian3.fromDegrees(p.lon,p.lat,h0); heading=Cesium.Math.toRadians(20); range=420;
-    await flyP(done=>cam.flyToBoundingSphere(new Cesium.BoundingSphere(center,1),{offset:new Cesium.HeadingPitchRange(heading,Cesium.Math.toRadians(-36),range),duration:4,complete:done,cancel:done}));
-    orbit=true; $('#orbitBtn').textContent='Pause orbit';
-    status(p.n+'. Ground height '+h0.toFixed(0)+' m. Real Google tiles underneath, real OSM on top.');
-  }catch(e){status('Problem: '+String(e.message||e).slice(0,160))}
-  busy=false;
+    const r=await fetch(CFG.api,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},CFG.token?{'x-ask-token':CFG.token}:{}),body:JSON.stringify({site:$('#site').value.split('/')[0],question:q})});
+    const j=await r.json(); if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+    $('#ans').textContent=j.answer;
+    $('#trace').innerHTML='tools: '+j.tools_called.map(t=>t.tool).join(', ')+'<br>'+(j.verified?'<span style="color:var(--good)">every number in the answer came from a tool</span>':'<span style="color:var(--bad)">not backed by a tool: '+j.unverified_numbers.join(', ')+'</span>');
+    clearPins();
+    const mp=(j.map_points||[]).slice(0,6);
+    mp.forEach(p=>{const c=xz(p.lon,p.lat);pin(c[0],c[1],p.label)});
+    if(mp.length){userTook();const c=xz(mp[0].lon,mp[0].lat);flyTarget(c[0],c[1],200,30,-42,2.6)}
+  }catch(e){$('#ans').textContent='The doctor service is not reachable. Start it with: python scripts/dev_api.py ('+e.message+')'}
 }
+$('#ask').onclick=ask; $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')ask()});
 
-/* ---------- UI ---------- */
-function build(){
-  $('#places').innerHTML=''; PLACES.forEach(p=>{const b=document.createElement('button');b.className='btn place';b.innerHTML='<b>'+p.n+'</b><small>'+p.s+'</small>';b.onclick=()=>go(p);$('#places').appendChild(b)});
-  $('#layers').innerHTML=LAYERS.map(l=>'<div class="layer"><i style="background:'+l[2]+'"></i><span>'+l[1]+'</span><button class="sw" role="switch" data-k="'+l[0]+'" aria-checked="true" aria-label="'+l[1]+'"></button></div>').join('');
-  $('#layers').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;const k=b.dataset.k;show[k]=!show[k];b.setAttribute('aria-checked',String(show[k]));applyShow()};
-  $('#llGo').onclick=()=>{const m=$('#ll').value.split(',').map(x=>parseFloat(x));if(m.length===2&&isFinite(m[0])&&isFinite(m[1]))go({n:'Custom place',lat:m[0],lon:m[1]});else status('Type it as: lat, lon')};
-  $('#keyGo').onclick=async()=>{const k=$('#key').value.trim();if(!k)return;setKey(k);$('#key').value='';await loadTiles(k)};
-  $('#orbitBtn').onclick=()=>{orbit=!orbit;$('#orbitBtn').textContent=orbit?'Pause orbit':'Resume orbit'};
-  $('#twinBtn').onclick=()=>{location.href='viewer.html'};
-}
-$('#origin').textContent=location.origin;
-build(); makeViewer();
-window.__ss={go:go,viewer:()=>viewer,testOSM:async(p)=>{h0=0;clearOSM();const el=await getOSM(p);drawOSM(el);center=Cesium.Cartesian3.fromDegrees(p.lon,p.lat,0);viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(center),new Cesium.HeadingPitchRange(.35,Cesium.Math.toRadians(-40),520));orbit=false;return el.length}};
-const k=getKey(); if(k)loadTiles(k);
+/* ---------- wiring + boot ---------- */
+$('#help').onclick=e=>{e.preventDefault();$('#helpList').hidden=!$('#helpList').hidden};
+$('#keyGo').onclick=async()=>{const k=$('#key').value.trim();if(!k)return;setKey(k);$('#key').value='';await loadTiles(k)};
+(async function boot(){
+  try{
+    makeViewer();
+    const idx=await (await fetch('data/index.json')).json();
+    $('#site').innerHTML=idx.sites.map(s=>'<option value="'+s.twin+'">'+s.name+'</option>').join('');
+    const q=new URLSearchParams(location.search), want=q.get('site'), opt=want&&[...$('#site').options].find(o=>o.value.startsWith(want+'/')); if(opt)$('#site').value=opt.value;
+    $('#site').onchange=async e=>{userTook();await loadSite(e.target.value);await flyTarget(0,0,520,0,-38,2.5);startOrbit(520,-38)};
+    const k=getKey(); if(k)await loadTiles(k);
+    await loadSite($('#site').value);
+    setHour(15);
+    status(tilesOn?'Photoreal 3D ready. Press Play tour.':'Flat map mode (no 3D tiles key yet). Press Play tour.');
+    await flyTarget(0,0,520,0,-38,0.1); startOrbit(520,-38);
+    if(q.get('fix'))await chooseFix(q.get('fix'));
+    if(q.get('tour')==='1')tour();
+    window.__ss={tour:tour,viewer:()=>viewer,chooseFix:chooseFix,setHour:setHour,camPreset:camPreset,hotspots:hotspots,state:()=>({tilesOn:tilesOn,h0:h0,hour:hour,sc:curSc&&curSc.id,entities:viewer.entities.values.length})};
+  }catch(e){status('Could not start: '+e.message)}
+})();
 })();
 </script>
 </body>

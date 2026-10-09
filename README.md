@@ -38,7 +38,7 @@ Cities plan streets from flat maps and old drawings. Heat is 3D: shade depends o
 | **Real-data viewer** (`web/viewer.html`) | Renders the twin in 3D with a sun slider, shade overlay, and a "how much is real" panel. Assumed values are coloured differently and listed under "gaps we will not hide". |
 | **Try a fix** (`pipeline/streetscope/scenarios.py`, viewer) | Three what-if fixes with real shade maths: plant street trees on the sunniest walkway spots (about one per 80 m² of walkway, 8 m apart), widen footpaths by 1.5 m, or both. Shows day-mean walkway shade and shaded walking area before and after, and an assumed cost. At AIIMS, 132 trees move day-mean walkway shade from 8.9% to 20%. |
 | **Doctor** (`agent/`) | A Strands agent on Amazon Bedrock with nine allow-listed tools, including `list_scenarios`. A number checker verifies every figure in each answer. Falls back to a labelled offline answer if Bedrock is not reachable. |
-| **Google 3D Tiles page** (`web/earth.html`) | Real Google Photorealistic 3D Tiles with the same real OpenStreetMap data on top. Display only; see Rules. |
+| **On real 3D** (`web/earth.html`, CesiumJS) | The same analysis on photoreal Google 3D Tiles: shade overlay draped on the real streets, roads by class with measured widths, trees, planned trees that grow, measured building outlines, simulated traffic, the doctor with fly-to pins, camera presets (overview, top-down, orbit, street walk) and a guided tour. Google tiles are display only. Without a key it runs on a flat OpenStreetMap map. |
 | **Simulator demo** (`web/demo/`) | A generated junction with a car-following traffic simulator, signals, bus lanes, six fixes and before/after. Clearly labelled as generated. |
 
 ## Honest limits
@@ -76,9 +76,9 @@ set PYTHONPATH=pipeline;agent
 python -m pytest pipeline/tests agent/tests
 ```
 
-### Google 3D Tiles page
+### Real 3D page
 
-`earth.html` needs your own key. Enable **Map Tiles API** in Google Cloud, create an API key restricted to that API and to `http://localhost:8765/*`, set a budget alert, then paste it into the page. The key stays in your browser. Without a Google billing account you can paste a free Cesium ion token instead.
+`earth.html` shows photoreal tiles when you give it a key. Enable **Map Tiles API** in Google Cloud, create an API key restricted to that API and to `http://localhost:8765/*`, set a budget alert, then paste it into the page. The key stays in your browser. Without a Google billing account you can paste a free Cesium ion token instead.
 
 ## Deploy to AWS
 

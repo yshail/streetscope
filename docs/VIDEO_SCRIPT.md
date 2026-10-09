@@ -25,6 +25,12 @@ Run `scripts/run_all.bat` first and use Chrome. Every link below opens the exact
 | 2:30 | Back to AIIMS. Type or click **Where should we plant first?** Show the answer, the tools line and the green check. | "The doctor is a Strands agent on Amazon Bedrock. It can only call measuring tools. A checker traces every number in the answer back to a tool, and flags any that did not come from one." |
 | 2:50 | Landing page, then the GitHub repo. | "Streetscope: open data in, measured street twin out. Code is open source." |
 
+## Bonus shot: the same analysis on real 3D (30 seconds)
+
+Open `http://localhost:8765/earth.html?site=aiims&tour=1` with a Cesium ion token or Google key loaded. The guided tour flies in from space, shows roads and widths, sweeps the sun, flies to the three sunniest spots, grows the planted trees, and ends with a street-level walk.
+
+Voice-over: "The same analysis sits on top of real photoreal 3D. Google's tiles are display only, so every number still comes from our own data and maths."
+
 ## If something breaks on camera
 
 - Doctor says it cannot be reached: start `scripts/dev_api.py`. It falls back to an offline answer without AWS credentials, and says so in the first words.

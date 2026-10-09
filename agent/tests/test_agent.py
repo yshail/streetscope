@@ -102,3 +102,10 @@ def test_offline_routes_shade_and_tree_count(site):
     assert "15:00" in b["answer"] and b["verified"]
     c = A.offline_answer(site, "how many trees are there?")
     assert {t["tool"] for t in c["tools_called"]} == {"count_trees"} and c["verified"]
+
+
+def test_answers_carry_map_points_for_the_3d_view(site):
+    out = A.offline_answer(site, "Where should we plant first?")
+    assert len(out["map_points"]) >= 1
+    assert all({"lat", "lon", "label"} <= set(p) for p in out["map_points"])
+    assert A.offline_answer(site, "how many trees?")["map_points"] == []
