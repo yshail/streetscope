@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Streetscope Earth</title>
+<link href="https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#05080d;--ink:#d9e6f2;--dim:#8196ab;--faint:#46586a;--line:#16232f;--line2:#233440;--ice:#d6efff;--blue:#2f7bff;--good:#3ddc97;--warn:#ffb83d;--bad:#ff5b4d;
+--display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;--body:'Hanken Grotesk',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 var(--body);overflow:hidden}
+#cv{position:fixed;inset:0}
+.cesium-viewer-bottom{z-index:5}
+.panel{position:fixed;z-index:10;background:rgba(8,13,20,.92);border:1px solid var(--line2);padding:14px 16px;overflow-y:auto}
+#left{left:12px;top:12px;bottom:60px;width:330px;display:flex;flex-direction:column;gap:18px}
+#right{right:12px;top:12px;width:300px;display:flex;flex-direction:column;gap:12px}
+h1{margin:0;font:800 24px/1 var(--display);letter-spacing:.14em}
+h1 small{display:block;font:400 10px var(--mono);letter-spacing:.06em;color:var(--dim);margin-top:4px}
+h3{margin:0 0 8px;font:500 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.note{margin:6px 0 0;font-size:12px;color:var(--dim)}
+button{font:inherit;color:inherit}
+.btn{border:1px solid var(--line2);background:transparent;font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:9px 12px;cursor:pointer;border-radius:2px;text-align:left}
+.btn:hover{border-color:var(--ice)}
+.btn.primary{background:var(--ice);color:#04070b;border-color:var(--ice)}
+.places{display:flex;flex-direction:column;gap:6px}
+.place b{display:block;font-weight:500;font-size:13.5px;letter-spacing:0;text-transform:none;font-family:var(--body)}
+.place small{color:var(--dim);font:400 11px var(--mono);letter-spacing:0;text-transform:none}
+input[type=text],input[type=password]{width:100%;background:#070c12;border:1px solid var(--line2);color:var(--ice);padding:8px 10px;font:400 13px var(--mono)}
+.row{display:flex;gap:6px}
+.layer{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:14px}
+.layer i{width:10px;height:10px;border-radius:50%;flex:none}
+.sw{margin-left:auto;width:36px;height:20px;border-radius:10px;background:var(--line2);position:relative;border:0;cursor:pointer}
+.sw::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#8196ab;transition:left .18s}
+.sw[aria-checked="true"]{background:var(--blue)}.sw[aria-checked="true"]::after{left:18px;background:#fff}
+.kv div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13.5px}
+.kv div:first-child{border-top:0}.kv span{color:var(--dim)}.kv b{font-weight:600;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font:500 9px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border:1px solid currentColor;margin-left:6px}
+.t-m{color:var(--good)}.t-s{color:#ff9d3c}.t-a{color:#5aa9ff}
+#status{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:12;background:rgba(5,8,13,.88);border:1px solid var(--line2);padding:8px 14px;font:400 12px var(--mono);max-width:min(640px,90vw);text-align:center}
+#msg{position:fixed;inset:0;z-index:8;display:grid;place-items:center;pointer-events:none}
+#msg div{max-width:520px;text-align:center;color:var(--dim);padding:20px;font-size:15px}
+.steps{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--dim)}
+.steps li{margin:3px 0}
+.steps code{font:400 11.5px var(--mono);color:var(--ice)}
+a{color:var(--ice)}
+.bad{color:var(--bad)}
+@media (max-width:900px){#left{width:auto;right:12px;bottom:auto;max-height:46vh}#right{display:none}}
+</style>
+</head>
+<body>
+<div id="cv"></div>
+<div id="msg"><div id="msgText">Paste a Cesium ion token (free) or a Google key on the left to load real Google Photorealistic 3D Tiles.</div></div>
+
+<aside class="panel" id="left">
+  <h1>STREETSCOPE EARTH<small>real Google 3D Tiles + real OpenStreetMap data</small></h1>
+
+  <section id="keySec">
+    <h3>Access key</h3>
+    <p class="note" style="margin:0 0 8px"><b>No card needed:</b> make a free <a href="https://ion.cesium.com/signup" target="_blank" rel="noopener">Cesium ion</a> account, open Access Tokens, copy the default token (starts with <code>eyJ</code>) and paste it below. It streams the same Google tiles. Or paste a Google Maps API key.</p>
+    <div class="row"><input type="password" id="key" placeholder="Cesium ion token or Google key" autocomplete="off"><button class="btn primary" id="keyGo">Load</button></div>
+    <p class="note">Only if you use a Google key:</p>
+    <ol class="steps">
+      <li>Open <a href="https://console.cloud.google.com/apis/library/tile.googleapis.com" target="_blank" rel="noopener">Map Tiles API</a> and press Enable. Billing must be on.</li>
+      <li>Credentials, then Create API key. Restrict it to <code>Map Tiles API</code>.</li>
+      <li>Under website restrictions add <code>http://localhost:8765/*</code>.</li>
+      <li>Set a budget alert. Each page load of the 3D tiles counts as one root tile request.</li>
+    </ol>
+    <p class="note" id="keyState"></p>
+    <div class="note" id="diag" style="display:none;border:1px solid var(--warn);padding:8px"></div>
+    <p class="note">This page runs at: <code id="origin"></code></p>
+  </section>
+
+  <section>
+    <h3>Places</h3>
+    <div class="places" id="places"></div>
+    <div class="row" style="margin-top:8px"><input type="text" id="ll" placeholder="or type lat, lon  e.g. 28.5672, 77.2100"><button class="btn" id="llGo">Go</button></div>
+    <p class="note">3D coverage varies. If the ground looks flat or empty, pick another place.</p>
+  </section>
+
+  <section>
+    <h3>Real data layers</h3>
+    <div id="layers"></div>
+  </section>
+
+  <section>
+    <h3>What OpenStreetMap knows here</h3>
+    <div class="kv" id="stats"><div><span>Pick a place first</span><b>-</b></div></div>
+    <p class="note" id="gaps"></p>
+  </section>
+</aside>
+
+<aside class="panel" id="right">
+  <h3>Rules for this view</h3>
+  <p class="note" style="margin:0">Google 3D Tiles are <b>display only</b>. Google's terms ban extracting geodata or running object detection on them. Every number here comes from OpenStreetMap or from the simulator, never from the tiles.</p>
+  <p class="note" style="margin:0">Keep the Google attribution visible at the bottom.</p>
+  <button class="btn primary" id="twinBtn">Open the analysis twin</button>
+  <button class="btn" id="orbitBtn">Pause orbit</button>
+</aside>
+
+<div id="status">Waiting for an access key.</div>
+
+<script>window.CESIUM_BASE_URL='https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/';</script>
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.124.0/Build/Cesium/Cesium.js"></script>
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s);
+const PLACES=[
+  {n:'AIIMS junction, New Delhi',lat:28.5672,lon:77.2100,f:'aiims',s:'flyover, bus stops, metro nearby'},
+  {n:'Connaught Place, New Delhi',lat:28.6315,lon:77.2167,f:'cp',s:'circular market, heavy walking'},
+  {n:'Shibuya Crossing, Tokyo',lat:35.6595,lon:139.7005,f:'shibuya',s:'the busiest crossing, best 3D coverage'},
+  {n:'Times Square, New York',lat:40.7580,lon:-73.9855,f:'times',s:'USGS LiDAR also exists here'}
+];
+const CLASSES={
+  big:{c:'#ff9d3c',w:6,list:['motorway','trunk','primary','motorway_link','trunk_link','primary_link'],label:'Main roads'},
+  mid:{c:'#ffd24a',w:5,list:['secondary','tertiary','secondary_link','tertiary_link'],label:'Secondary roads'},
+  small:{c:'#35c6ff',w:3.5,list:['residential','unclassified','living_street','service'],label:'Local streets'},
+  walk:{c:'#b06aff',w:3,list:['footway','path','steps','pedestrian','cycleway','track'],label:'Footpaths and steps'}
+};
+const LAYERS=[['roads','Roads by class','#ff9d3c'],['trees','Mapped trees','#3dff9a'],['stops','Bus stops','#5aa9ff'],['cross','Crossings','#ffd24a'],['ev','EV chargers','#3dd6ff'],['sim','Simulated traffic','#ff9d3c']];
+const show={roads:true,trees:true,stops:true,cross:true,ev:true,sim:true};
+let viewer=null, tileset=null, ents={roads:[],trees:[],stops:[],cross:[],ev:[],sim:[]}, h0=0, orbit=true, heading=0, center=null, busy=false, pathsForSim=[];
+const status=t=>{$('#status').textContent=t};
+const getKey=()=>{try{return localStorage.getItem('gkey')||''}catch(e){return''}};
+const setKey=k=>{try{localStorage.setItem('gkey',k)}catch(e){}};
+
+function makeViewer(){
+  viewer=new Cesium.Viewer('cv',{baseLayer:false,globe:false,animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,fullscreenButton:false,infoBox:false,selectionIndicator:false});
+  viewer.scene.skyAtmosphere.show=false;
+  viewer.scene.backgroundColor=Cesium.Color.fromCssColorString('#04070d');
+  viewer.clock.onTick.addEventListener(()=>{
+    if(orbit&&center){heading+=.0016;viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(center),new Cesium.HeadingPitchRange(heading,Cesium.Math.toRadians(-36),range))}
+  });
+}
+let range=420;
+
+async function loadTiles(key){
+  if(tileset){viewer.scene.primitives.remove(tileset);tileset=null}
+  status('Loading Google Photorealistic 3D Tiles...');
+  try{
+    if(key.indexOf('eyJ')===0){Cesium.Ion.defaultAccessToken=key;Cesium.GoogleMaps.defaultApiKey=undefined;tileset=await Cesium.createGooglePhotorealistic3DTileset({onlyUsingWithGoogleGeocoder:true})}
+    else tileset=await Cesium.createGooglePhotorealistic3DTileset({key:key,onlyUsingWithGoogleGeocoder:true});
+    viewer.scene.primitives.add(tileset);viewer.scene.skyAtmosphere.show=true;
+    $('#msg').style.display='none';
+    $('#keyState').innerHTML='Key loaded. <a href="#" id="forget">Forget key</a>';
+    $('#forget').onclick=e=>{e.preventDefault();setKey('');location.reload()};
+    status('Google 3D Tiles ready. Pick a place.');
+    return true;
+  }catch(e){
+    $('#msg').style.display='grid';
+    $('#msgText').innerHTML='<span class="bad">Google refused the tiles.</span><br>For a Google key: Map Tiles API enabled, billing on, key allows <code>http://localhost:8765/*</code>. For a Cesium ion token: copy the whole token.<br><small>'+String(e.message||e).slice(0,200)+'</small>';
+    status('Tiles failed to load.');
+    diagnose(key);
+    return false;
+  }
+}
+
+async function diagnose(key){
+  const box=$('#diag'); box.style.display='block';
+  const origin=location.origin+'/*';
+  if(key.indexOf('eyJ')===0){$('#msgText').innerHTML+='<br><br><b style="color:#ffb83d">Cesium ion token problem.</b> Copy the whole token from ion.cesium.com, Access Tokens.';box.innerHTML='<b>Cesium ion token problem.</b> Copy the whole token from ion.cesium.com, Access Tokens. This page runs at <code>'+location.origin+'</code>.';return}
+  box.innerHTML='Asking Google why...';
+  try{
+    const r=await fetch('https://tile.googleapis.com/v1/3dtiles/root.json?key='+encodeURIComponent(key));
+    const j=await r.json().catch(()=>({}));
+    if(r.ok){box.innerHTML='Google accepts this key from here. Reload the page and press Load again.';return}
+    const e=j.error||{}, d=(e.details||[]).find(x=>x.reason)||{}, why=d.reason||e.status||('HTTP '+r.status);
+    const fix={
+      API_KEY_HTTP_REFERRER_BLOCKED:'Website restriction does not match this page. Add exactly: <code>'+origin+'</code> (also try <code>'+location.origin+'/</code>), then wait 5 minutes.',
+      API_KEY_SERVICE_BLOCKED:'The key blocks Map Tiles API. Edit the key, API restrictions, tick Map Tiles API.',
+      SERVICE_DISABLED:'Enable Map Tiles API in the project that owns this key.',
+      API_KEY_INVALID:'Google does not know this key. Copy it again from Credentials, with no spaces.',
+      BILLING_DISABLED:'Billing is not linked to the project that owns this key.',
+      RATE_LIMIT_EXCEEDED:'Quota used up for now.'
+    }[d.reason]||'See the message below.';
+    box.innerHTML='<b>Google says: '+why+'</b><br>'+fix+'<br><small>This page runs at <code>'+location.origin+'</code>. '+String(e.message||'').replace(key,'[key]').slice(0,220)+'</small>';
+    $('#msgText').innerHTML+='<br><br><b style="color:#ffb83d">Google says: '+why+'</b><br>'+fix;
+  }catch(err){
+    box.innerHTML='Could not reach Google from this page ('+String(err.message||err)+'). If you are in a preview pane, open <code>http://localhost:8765/earth.html</code> in Chrome instead. This page runs at <code>'+location.origin+'</code>.';
+  }
+}
+
+/* ---------- OpenStreetMap ---------- */
+const MIRRORS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
+async function fetchOSM(lat,lon,r){
+  const q='[out:json][timeout:25];(way["highway"](around:'+r+','+lat+','+lon+');node["natural"="tree"](around:'+r+','+lat+','+lon+');node["highway"="bus_stop"](around:'+r+','+lat+','+lon+');node["highway"="crossing"](around:'+r+','+lat+','+lon+');node["amenity"="charging_station"](around:'+(r*2)+','+lat+','+lon+'););out geom;';
+  let last;
+  for(const u of MIRRORS){
+    try{const res=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!res.ok)throw new Error('HTTP '+res.status);return(await res.json()).elements||[]}catch(e){last=e}
+  }
+  throw last;
+}
+async function getOSM(p){
+  if(p.f){try{const r=await fetch('data/earth/'+p.f+'.json');if(r.ok)return(await r.json()).elements||[]}catch(e){}}
+  return fetchOSM(p.lat,p.lon,350);
+}
+const R_E=6371000, rad=Math.PI/180;
+function hav(a,b){const dl=(b.lat-a.lat)*rad,dn=(b.lon-a.lon)*rad,x=Math.sin(dl/2)**2+Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dn/2)**2;return 2*R_E*Math.asin(Math.sqrt(x))}
+function classOf(h){for(const k in CLASSES)if(CLASSES[k].list.indexOf(h)>=0)return k;return null}
+function clearOSM(){for(const k in ents){ents[k].forEach(e=>viewer.entities.remove(e));ents[k]=[]}pathsForSim=[]}
+function applyShow(){for(const k in ents)ents[k].forEach(e=>{e.show=show[k]})}
+
+function drawOSM(el){
+  const H=h0, st={len:{big:0,mid:0,small:0,walk:0},ways:0,width:0,lanes:0,oneway:0,trees:0,stops:0,cross:0,ev:0};
+  for(const e of el){
+    const t=e.tags||{};
+    if(e.type==='way'&&t.highway&&e.geometry){
+      const k=classOf(t.highway); if(!k)continue; st.ways++;
+      if(t.width)st.width++; if(t.lanes)st.lanes++; if(t.oneway)st.oneway++;
+      const pts=e.geometry.map(g=>({lat:g.lat,lon:g.lon})); let L=0; for(let i=1;i<pts.length;i++)L+=hav(pts[i-1],pts[i]); st.len[k]+=L;
+      const flat=[]; pts.forEach(p=>flat.push(p.lon,p.lat,H+2.2));
+      ents.roads.push(viewer.entities.add({polyline:{positions:Cesium.Cartesian3.fromDegreesArrayHeights(flat),width:CLASSES[k].w,material:new Cesium.PolylineGlowMaterialProperty({glowPower:.22,color:Cesium.Color.fromCssColorString(CLASSES[k].c)})}}));
+      if((k==='big'||k==='mid')&&L>70)pathsForSim.push({pts:pts,L:L});
+    } else if(e.type==='node'){
+      const pos=Cesium.Cartesian3.fromDegrees(e.lon,e.lat,H+(t.natural==='tree'?9:4));
+      if(t.natural==='tree'){st.trees++;ents.trees.push(viewer.entities.add({position:pos,point:{pixelSize:9,color:Cesium.Color.fromCssColorString('#3dff9a'),outlineColor:Cesium.Color.BLACK,outlineWidth:1,disableDepthTestDistance:1e6}}))}
+      else if(t.highway==='bus_stop'){st.stops++;ents.stops.push(viewer.entities.add({position:pos,point:{pixelSize:14,color:Cesium.Color.fromCssColorString('#5aa9ff'),outlineColor:Cesium.Color.WHITE,outlineWidth:2,disableDepthTestDistance:1e6},label:{text:t.name||'Bus stop',font:'13px sans-serif',fillColor:Cesium.Color.WHITE,outlineColor:Cesium.Color.BLACK,outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new Cesium.Cartesian2(0,-22),distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,900),disableDepthTestDistance:1e6}}))}
+      else if(t.highway==='crossing'){st.cross++;ents.cross.push(viewer.entities.add({position:pos,point:{pixelSize:8,color:Cesium.Color.fromCssColorString('#ffd24a'),outlineColor:Cesium.Color.BLACK,outlineWidth:1,disableDepthTestDistance:1e6}}))}
+      else if(t.amenity==='charging_station'){st.ev++;ents.ev.push(viewer.entities.add({position:pos,point:{pixelSize:14,color:Cesium.Color.fromCssColorString('#3dd6ff'),outlineColor:Cesium.Color.WHITE,outlineWidth:2,disableDepthTestDistance:1e6},label:{text:'EV charger',font:'13px sans-serif',fillColor:Cesium.Color.WHITE,outlineColor:Cesium.Color.BLACK,outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new Cesium.Cartesian2(0,-22),disableDepthTestDistance:1e6}}))}
+    }
+  }
+  addSim(); applyShow(); showStats(st);
+}
+function pointAt(p,d){
+  let acc=0; for(let i=1;i<p.pts.length;i++){const a=p.pts[i-1],b=p.pts[i],l=hav(a,b);if(acc+l>=d){const f=(d-acc)/Math.max(l,1e-6);return Cesium.Cartesian3.fromDegrees(a.lon+(b.lon-a.lon)*f,a.lat+(b.lat-a.lat)*f,h0+3)}acc+=l}
+  const q=p.pts[p.pts.length-1];return Cesium.Cartesian3.fromDegrees(q.lon,q.lat,h0+3);
+}
+function addSim(){
+  pathsForSim.sort((a,b)=>b.L-a.L);
+  pathsForSim.slice(0,4).forEach((p,pi)=>{
+    for(let k=0;k<9;k++){
+      const off=k*p.L/9, sp=7+((k*37+pi*11)%6), dir=(k%2)?1:-1;
+      ents.sim.push(viewer.entities.add({position:new Cesium.CallbackProperty(()=>{let d=(off+Date.now()/1000*sp*dir)%p.L;if(d<0)d+=p.L;return pointAt(p,d)},false),point:{pixelSize:8,color:Cesium.Color.fromCssColorString('#ff9d3c'),outlineColor:Cesium.Color.BLACK,outlineWidth:1,disableDepthTestDistance:1e6}}));
+    }
+  });
+}
+function showStats(s){
+  const km=x=>(x/1000).toFixed(2)+' km';
+  $('#stats').innerHTML=
+   '<div><span>Road ways <span class="tag t-m">OSM</span></span><b>'+s.ways+'</b></div>'+
+   '<div><span>Main roads</span><b>'+km(s.len.big)+'</b></div><div><span>Secondary roads</span><b>'+km(s.len.mid)+'</b></div>'+
+   '<div><span>Local streets</span><b>'+km(s.len.small)+'</b></div><div><span>Footpaths and steps</span><b>'+km(s.len.walk)+'</b></div>'+
+   '<div><span>Mapped trees <span class="tag t-m">OSM</span></span><b>'+s.trees+'</b></div><div><span>Bus stops</span><b>'+s.stops+'</b></div>'+
+   '<div><span>Crossings</span><b>'+s.cross+'</b></div><div><span>EV chargers (600 m)</span><b>'+s.ev+'</b></div>'+
+   '<div><span>Cars on screen <span class="tag t-s">simulated</span></span><b>'+ents.sim.length+'</b></div>';
+  const g=[];
+  if(s.ways)g.push('Only '+s.width+' of '+s.ways+' roads have a width tag and '+s.lanes+' have lanes.');
+  if(s.trees<10)g.push('OSM maps very few trees here. This is why the real build counts trees from a point cloud or a canopy map.');
+  $('#gaps').textContent=g.join(' ');
+}
+
+/* ---------- fly ---------- */
+const flyP=fn=>new Promise(res=>fn(res));
+async function go(p){
+  if(busy||!viewer)return; busy=true; orbit=false; center=null; clearOSM(); $('#stats').innerHTML='<div><span>Loading...</span><b>-</b></div>'; $('#gaps').textContent='';
+  try{
+    const cam=viewer.camera;
+    cam.setView({destination:Cesium.Cartesian3.fromDegrees(p.lon,p.lat,9000000)});
+    status('Flying in from space: '+p.n);
+    await flyP(done=>cam.flyTo({destination:Cesium.Cartesian3.fromDegrees(p.lon,p.lat,2400),orientation:{heading:0,pitch:Cesium.Math.toRadians(-85),roll:0},duration:5,complete:done,cancel:done}));
+    h0=0;
+    try{const c=await viewer.scene.sampleHeightMostDetailed([Cesium.Cartographic.fromDegrees(p.lon,p.lat)]);if(c&&c[0]&&isFinite(c[0].height))h0=c[0].height}catch(e){}
+    status(p.f?'Reading saved OpenStreetMap data (downloaded 9 Oct 2026)...':'Asking OpenStreetMap live. This can be slow or refused...');
+    const el=await getOSM(p);
+    drawOSM(el);
+    status('Diving to the junction. Drag to look around, wheel to zoom.');
+    center=Cesium.Cartesian3.fromDegrees(p.lon,p.lat,h0); heading=Cesium.Math.toRadians(20); range=420;
+    await flyP(done=>cam.flyToBoundingSphere(new Cesium.BoundingSphere(center,1),{offset:new Cesium.HeadingPitchRange(heading,Cesium.Math.toRadians(-36),range),duration:4,complete:done,cancel:done}));
+    orbit=true; $('#orbitBtn').textContent='Pause orbit';
+    status(p.n+'. Ground height '+h0.toFixed(0)+' m. Real Google tiles underneath, real OSM on top.');
+  }catch(e){status('Problem: '+String(e.message||e).slice(0,160))}
+  busy=false;
+}
+
+/* ---------- UI ---------- */
+function build(){
+  $('#places').innerHTML=''; PLACES.forEach(p=>{const b=document.createElement('button');b.className='btn place';b.innerHTML='<b>'+p.n+'</b><small>'+p.s+'</small>';b.onclick=()=>go(p);$('#places').appendChild(b)});
+  $('#layers').innerHTML=LAYERS.map(l=>'<div class="layer"><i style="background:'+l[2]+'"></i><span>'+l[1]+'</span><button class="sw" role="switch" data-k="'+l[0]+'" aria-checked="true" aria-label="'+l[1]+'"></button></div>').join('');
+  $('#layers').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;const k=b.dataset.k;show[k]=!show[k];b.setAttribute('aria-checked',String(show[k]));applyShow()};
+  $('#llGo').onclick=()=>{const m=$('#ll').value.split(',').map(x=>parseFloat(x));if(m.length===2&&isFinite(m[0])&&isFinite(m[1]))go({n:'Custom place',lat:m[0],lon:m[1]});else status('Type it as: lat, lon')};
+  $('#keyGo').onclick=async()=>{const k=$('#key').value.trim();if(!k)return;setKey(k);$('#key').value='';await loadTiles(k)};
+  $('#orbitBtn').onclick=()=>{orbit=!orbit;$('#orbitBtn').textContent=orbit?'Pause orbit':'Resume orbit'};
+  $('#twinBtn').onclick=()=>{location.href='viewer.html'};
+}
+$('#origin').textContent=location.origin;
+build(); makeViewer();
+window.__ss={go:go,viewer:()=>viewer,testOSM:async(p)=>{h0=0;clearOSM();const el=await getOSM(p);drawOSM(el);center=Cesium.Cartesian3.fromDegrees(p.lon,p.lat,0);viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(center),new Cesium.HeadingPitchRange(.35,Cesium.Math.toRadians(-40),520));orbit=false;return el.length}};
+const k=getKey(); if(k)loadTiles(k);
+})();
+</script>
+</body>
+</html>

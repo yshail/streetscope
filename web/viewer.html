@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Streetscope Viewer</title>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#05080d;--ink:#d9e6f2;--dim:#8196ab;--faint:#46586a;--line:#16232f;--line2:#233440;--ice:#d6efff;--blue:#2f7bff;
+--good:#3ddc97;--warn:#ffb83d;--bad:#ff5b4d;--display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;--body:'Hanken Grotesk',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 var(--body);overflow:hidden}
+.app{height:100%;display:grid;grid-template-columns:290px minmax(0,1fr) 360px;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"top top top" "left stage right" "bar bar bar"}
+.top{grid-area:top;display:flex;gap:18px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--line);background:#0a1118;flex-wrap:wrap}
+.brand{font:800 22px/1 var(--display);letter-spacing:.14em}
+.brand small{display:block;font:400 9.5px var(--mono);letter-spacing:.06em;color:var(--dim);margin-top:3px}
+.top nav{display:flex;gap:4px;margin-left:auto}
+.top nav a{color:var(--dim);text-decoration:none;padding:8px 12px;border:1px solid var(--line2);font:500 12px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.top nav a:hover,.top nav a.on{color:#04070b;background:var(--ice);border-color:var(--ice)}
+.panel{overflow-y:auto;padding:14px 16px;background:#080d14;display:flex;flex-direction:column;gap:20px}
+.left{grid-area:left;border-right:1px solid var(--line)}.right{grid-area:right;border-left:1px solid var(--line)}
+h3{margin:0 0 8px;font:500 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between}
+h3 .sub{letter-spacing:.04em;text-transform:none;color:var(--faint)}
+.note{margin:6px 0 0;font-size:12px;color:var(--dim)}
+select{width:100%;background:#070c12;color:var(--ice);border:1px solid var(--line2);padding:8px;font:400 13px var(--mono)}
+.layer{display:flex;align-items:center;gap:10px;padding:5px 0}
+.layer i{width:10px;height:10px;border-radius:2px;flex:none}
+.sw{margin-left:auto;width:36px;height:20px;border-radius:10px;background:var(--line2);position:relative;border:0;cursor:pointer}
+.sw::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#8196ab;transition:left .18s}
+.sw[aria-checked="true"]{background:var(--blue)}.sw[aria-checked="true"]::after{left:18px;background:#fff}
+.stage{grid-area:stage;position:relative;min-height:0;background:#04070b;touch-action:none;cursor:grab}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;left:14px;top:14px;font:400 11px/1.6 var(--mono);color:#cfe0f0;text-shadow:0 1px 6px #000;pointer-events:none}
+.hud b{color:#fff;font-weight:500}
+.legend{position:absolute;right:14px;bottom:14px;background:rgba(5,8,13,.85);border:1px solid var(--line2);padding:8px 10px;font:400 11px var(--mono);display:flex;flex-direction:column;gap:4px}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:7px;vertical-align:-1px}
+.kv div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13.5px}
+.kv div:first-child{border-top:0}.kv span{color:var(--dim)}.kv b{font-weight:600;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font:500 9px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border:1px solid currentColor;margin-left:6px}
+.t-m{color:var(--good)}.t-e{color:#5aa9ff}.t-c{color:var(--ice)}
+.bar2{height:8px;background:var(--line2);display:flex;margin:6px 0 2px}.bar2 i{display:block;height:100%}
+.gap{font-size:12.5px;color:var(--warn);padding:6px 0;border-top:1px solid var(--line)}
+.bar{grid-area:bar;display:flex;gap:16px 24px;align-items:center;padding:9px 16px;border-top:1px solid var(--line);background:#0a1118;flex-wrap:wrap}
+.bar label{display:flex;align-items:center;gap:10px;font:400 10px var(--mono);letter-spacing:.14em;color:var(--dim)}
+.bar output{font:500 14px var(--mono);color:var(--ice);min-width:130px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:260px;max-width:100%;height:22px;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:linear-gradient(90deg,#0e5a7a,#f4b942,#ff5b2e)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--ice);margin-top:-6px}
+.btn{border:1px solid var(--line2);background:transparent;color:var(--ink);font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;cursor:pointer}
+.btn:hover{border-color:var(--ice)}
+#chart{width:100%;height:auto;display:block}
+.msg{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);text-align:center;padding:24px;pointer-events:none}
+@media (max-width:1000px){html,body{overflow:auto}.app{height:auto;display:flex;flex-direction:column}.stage{height:60vh;min-height:360px}.panel{overflow:visible}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">STREETSCOPE<small>real open data in, measured street twin out</small></div>
+    <nav><a class="on" href="viewer.html">Real twin</a><a href="earth.html">Google 3D Tiles</a><a href="demo/index.html">Simulator demo</a></nav>
+  </header>
+
+  <aside class="panel left">
+    <section><h3>Site</h3><select id="site"></select><p class="note" id="siteNote"></p></section>
+    <section><h3>Layers</h3><div id="layers"></div></section>
+    <section><h3>How to read the colours</h3>
+      <div class="note" style="margin:0">Buildings are <b style="color:#9fc4ff">blue</b> when OpenStreetMap has a real height or floor count, and <b style="color:#c9a98a">tan</b> when the height is assumed. Nothing is hidden.</div>
+    </section>
+    <section><h3>Data ladder</h3><p class="note" style="margin:0">This site is <b>level 3</b>: built from open data only. Level 1 and 2 (LiDAR, own scan) replace the assumed numbers when they exist.</p></section>
+  </aside>
+
+  <main class="stage" id="stage">
+    <canvas id="gl"></canvas>
+    <div class="hud" id="hud"></div>
+    <div class="legend"><div><i style="background:#ff8a2b"></i>sun on the ground</div><div><i style="background:#3fdc90"></i>tree shade</div><div><i style="background:#2a64d8"></i>building shade</div></div>
+    <div class="msg" id="msg">Loading the twin...</div>
+  </main>
+
+  <aside class="panel right">
+    <section><h3>Walkway shade <span class="sub" id="shadeSub"></span></h3>
+      <svg id="chart" viewBox="0 0 320 130" role="img" aria-label="Share of walkway in shade by hour"></svg>
+      <p class="note" id="shadeNote"></p></section>
+    <section><h3>What the map says</h3><div class="kv" id="stats"></div></section>
+    <section><h3>How much is real</h3><div id="conf"></div></section>
+    <section><h3>Gaps we will not hide</h3><div id="gaps"></div></section>
+    <section><h3>Attribution</h3><p class="note" style="margin:0" id="attr"></p></section>
+  </aside>
+
+  <footer class="bar">
+    <label>SUN <input id="hour" type="range" min="6" max="18" step="1" value="15"><output id="hourOut"></output></label>
+    <button class="btn" id="spin">Pause orbit</button>
+    <button class="btn" id="top">Top view</button>
+  </footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s);
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const tag=t=>'<span class="tag t-'+({measured:'m',estimated:'e',computed:'c'}[t])+'">'+t+'</span>';
+let T=null, shade=null, R=0, renderer, scene, camera, group=null, heat=null, heatTex=null, sunL, hemi, orbit=true;
+const cam={tx:0,ty:4,tz:0,r:520,th:.8,ph:1.0}, layers={buildings:true,roads:true,trees:true,heat:true,walkOnly:true};
+
+/* ---------- renderer ---------- */
+const stage=$('#stage'), canvas=$('#gl');
+try{renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true})}catch(e){$('#msg').textContent='This page needs WebGL.';return}
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+scene=new THREE.Scene(); scene.background=new THREE.Color(0xa9c6e0); scene.fog=new THREE.FogExp2(0xa9c6e0,.0008);
+camera=new THREE.PerspectiveCamera(48,1,1,4000);
+hemi=new THREE.HemisphereLight(0xcfe3ff,0x6b6f5a,.85); scene.add(hemi);
+sunL=new THREE.DirectionalLight(0xfff1d6,1); sunL.castShadow=true; sunL.shadow.mapSize.set(2048,2048); sunL.shadow.bias=-.0007; scene.add(sunL); scene.add(sunL.target);
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+new ResizeObserver(resize).observe(stage);
+
+/* ---------- build from twin.json ---------- */
+const CLS={main:{c:0x3a3f47,y:.02},mid:{c:0x40454d,y:.022},local:{c:0x4a4f57,y:.024},walk:{c:0xb9b4aa,y:.05}};
+function ribbon(pts,w,y){
+  const P=[],I=[],n=pts.length;
+  for(let i=0;i<n;i++){
+    const a=pts[Math.max(0,i-1)],b=pts[i],c=pts[Math.min(n-1,i+1)];
+    let dx1=b[0]-a[0],dz1=b[1]-a[1],dx2=c[0]-b[0],dz2=c[1]-b[1];
+    const l1=Math.hypot(dx1,dz1)||1,l2=Math.hypot(dx2,dz2)||1; dx1/=l1;dz1/=l1;dx2/=l2;dz2/=l2;
+    let nx=-(dz1+dz2),nz=dx1+dx2; const l=Math.hypot(nx,nz)||1; nx/=l;nz/=l;
+    P.push(b[0]+nx*w/2,y,b[1]+nz*w/2, b[0]-nx*w/2,y,b[1]-nz*w/2);
+    if(i<n-1){const k=i*2;I.push(k,k+2,k+1, k+1,k+2,k+3)}
+  }
+  return {P:P,I:I};
+}
+function build(){
+  if(group)scene.remove(group);
+  group=new THREE.Group(); R=T.meta.radius_m;
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(R*6,R*6).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0x7d8b6c}));ground.position.y=-.03;ground.receiveShadow=true;group.add(ground);
+  // roads, one merged mesh per class
+  const roadsG=new THREE.Group(); roadsG.name='roads';
+  for(const cls in CLS){
+    const P=[],I=[];
+    for(const r of T.roads){ if(r.cls!==cls)continue; if(r.pts.length<2)continue;
+      const y=CLS[cls].y+(r.bridge?6.5:0), rb=ribbon(r.pts,r.width_m,y), off=P.length/3;
+      P.push(...rb.P); rb.I.forEach(i=>I.push(i+off)); }
+    if(!I.length)continue;
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(P,3)); g.setIndex(I); g.computeVertexNormals();
+    const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:CLS[cls].c,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1}));
+    m.receiveShadow=true; m.castShadow=cls!=='walk'; roadsG.add(m);
+  }
+  group.add(roadsG);
+  // buildings
+  const bg=new THREE.Group(); bg.name='buildings';
+  const real=new THREE.MeshLambertMaterial({color:0x9fc4ff}), roofR=new THREE.MeshLambertMaterial({color:0xcfe0ff});
+  const asm=new THREE.MeshLambertMaterial({color:0xc9a98a}), roofA=new THREE.MeshLambertMaterial({color:0xddc8b0});
+  for(const b of T.buildings){
+    const sh=new THREE.Shape(b.footprint.map(p=>new THREE.Vector2(p[0],-p[1])));
+    const g=new THREE.ExtrudeGeometry(sh,{depth:b.height_m,bevelEnabled:false}); g.rotateX(-Math.PI/2);
+    const known=b.height_source!=='default';
+    const m=new THREE.Mesh(g,known?[known?roofR:roofA,real]:[roofA,asm]); m.castShadow=m.receiveShadow=true; bg.add(m);
+  }
+  group.add(bg);
+  // trees
+  const tg=new THREE.Group(); tg.name='trees';
+  if(T.trees.length){
+    const cr=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,1),new THREE.MeshLambertMaterial({color:0x3fae5a}),T.trees.length),
+          tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.2,.3,1,6).translate(0,.5,0),new THREE.MeshLambertMaterial({color:0x6b5a46}),T.trees.length), d=new THREE.Object3D();
+    T.trees.forEach((t,i)=>{const cy=t.height_m-t.crown_r*.85;d.position.set(t.x,0,t.z);d.scale.set(1,cy,1);d.updateMatrix();tr.setMatrixAt(i,d.matrix);
+      d.position.set(t.x,cy,t.z);d.scale.set(t.crown_r,t.crown_r*.85,t.crown_r);d.updateMatrix();cr.setMatrixAt(i,d.matrix)});
+    cr.castShadow=tr.castShadow=true; tg.add(cr,tr);
+  }
+  group.add(tg);
+  // stops and crossings
+  const sg=new THREE.Group();
+  T.stops.forEach(s=>{const m=new THREE.Mesh(new THREE.BoxGeometry(3,3.2,1.2),new THREE.MeshLambertMaterial({color:0x2f6bd6}));m.position.set(s.x,1.6,s.z);m.castShadow=true;sg.add(m)});
+  T.crossings.forEach(s=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(.9,.9,.1,10),new THREE.MeshBasicMaterial({color:0xffd24a}));m.position.set(s.x,.2,s.z);sg.add(m)});
+  T.ev.forEach(s=>{const m=new THREE.Mesh(new THREE.BoxGeometry(2,2.6,2),new THREE.MeshBasicMaterial({color:0x3dd6ff}));m.position.set(s.x,1.3,s.z);sg.add(m)});
+  group.add(sg);
+  // heat overlay
+  const n=shade.shape[1], data=new Uint8Array(n*n*4);
+  heatTex=new THREE.DataTexture(data,n,n,THREE.RGBAFormat); heatTex.magFilter=THREE.NearestFilter; heatTex.minFilter=THREE.NearestFilter;
+  heat=new THREE.Mesh(new THREE.PlaneGeometry(n*shade.cell_m,n*shade.cell_m).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:heatTex,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
+  heat.position.set(shade.origin[0]+n*shade.cell_m/2,.09,shade.origin[1]+n*shade.cell_m/2); heat.renderOrder=3; group.add(heat);
+  scene.add(group);
+  const sc=sunL.shadow.camera; Object.assign(sc,{left:-R*1.1,right:R*1.1,top:R*1.1,bottom:-R*1.1,near:10,far:R*4}); sc.updateProjectionMatrix();
+  cam.r=R*2.5; cam.ph=.85;
+}
+function setHour(h){
+  const k=shade.hours.indexOf(h); if(k<0)return;
+  const n=shade.shape[1], per=n*n, off=k*per, d=heatTex.image.data, bytes=SH.subarray(off,off+per);
+  for(let j=0;j<n;j++)for(let i=0;i<n;i++){
+    const v=bytes[j*n+i], o=((n-1-j)*n+i)*4, w=WK[j*n+i]===1;
+    if(layers.walkOnly&&!w){d[o+3]=0;continue}
+    const a=w?210:90;
+    if(v===255){d[o]=255;d[o+1]=138;d[o+2]=43;d[o+3]=a}
+    else if(v===90){d[o]=63;d[o+1]=220;d[o+2]=144;d[o+3]=a}
+    else if(v===0){d[o]=42;d[o+1]=100;d[o+2]=216;d[o+3]=a}
+    else {d[o+3]=0}
+  }
+  heatTex.needsUpdate=true;
+  const s=shade.sun[k], el=s.el*Math.PI/180, az=s.az*Math.PI/180;
+  const dx=Math.sin(az)*Math.cos(el), dz=-Math.cos(az)*Math.cos(el), dy=Math.sin(el);
+  sunL.position.set(dx*R*3,Math.max(dy,.02)*R*3,dz*R*3); sunL.intensity=s.el>2?1:.05; hemi.intensity=s.el>2?.85:.35;
+  $('#hourOut').textContent=String(h).padStart(2,'0')+':00  sun '+Math.round(s.el)+'°';
+  const p=shade.walk_shade_pct[k]; $('#hud').innerHTML='HOUR <b>'+String(h).padStart(2,'0')+':00</b> &nbsp; SUN ELEV <b>'+s.el+'°</b> AZ <b>'+s.az+'°</b><br>WALKWAY IN SHADE <b>'+(p==null?'night':p+'%')+'</b>';
+  drawChart(h);
+}
+function drawChart(h){
+  const pts=shade.walk_shade_pct, hs=shade.hours, W=320,Hh=130,L=8,Rr=312,Tp=10,B=104, X=v=>L+(v-hs[0])/(hs[hs.length-1]-hs[0])*(Rr-L), Y=v=>B-(v/100)*(B-Tp);
+  let s='';[0,50,100].forEach(v=>{s+='<line x1="'+L+'" x2="'+Rr+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="#16232f"/><text x="'+Rr+'" y="'+(Y(v)-3)+'" text-anchor="end" fill="#46586a" font-size="9" font-family="monospace">'+v+'%</text>'});
+  hs.forEach((v,i)=>{if(i%3===0)s+='<text x="'+X(v)+'" y="122" text-anchor="middle" fill="#8196ab" font-size="9.5" font-family="monospace">'+String(v).padStart(2,'0')+'</text>'});
+  const line=hs.map((v,i)=>pts[i]==null?null:X(v).toFixed(1)+','+Y(pts[i]).toFixed(1)).filter(Boolean).join(' ');
+  s+='<polyline points="'+line+'" fill="none" stroke="#3ddc97" stroke-width="2"/>';
+  s+='<line x1="'+X(h)+'" x2="'+X(h)+'" y1="'+Tp+'" y2="'+B+'" stroke="#ff9d3c"/>';
+  $('#chart').innerHTML=s;
+  const valid=pts.filter(v=>v!=null), mid=pts[hs.indexOf(12)];
+  $('#shadeNote').textContent='Midday: '+(mid==null?'-':mid+'%')+' of the walkway is in shade. Best hour: '+Math.max(...valid)+'%. Computed from real sun position on '+shade.date+'.';
+  $('#shadeSub').textContent=shade.walk_cells+' walkway cells';
+}
+function stats(){
+  const s=T.stats, km=k=>(s.road_km[k]||0).toFixed(2)+' km';
+  const ws=s.road_width_sources, hs=s.building_height_sources, nd=(ws.osm_width||0)+(ws.lanes||0)+(ws.default||0), nb=s.buildings;
+  $('#stats').innerHTML='<div><span>Road ways '+tag('measured')+'</span><b>'+s.road_ways+'</b></div><div><span>Main roads</span><b>'+km('main')+'</b></div><div><span>Secondary</span><b>'+km('mid')+'</b></div><div><span>Local streets</span><b>'+km('local')+'</b></div><div><span>Footpaths and steps</span><b>'+km('walk')+'</b></div><div><span>Buildings</span><b>'+nb+'</b></div><div><span>Mapped trees</span><b>'+s.trees+'</b></div><div><span>Bus stops</span><b>'+s.bus_stops+'</b></div><div><span>Crossings</span><b>'+s.crossings+'</b></div>';
+  const pr=(a,b)=>b?Math.round(100*a/b):0, rw=(ws.osm_width||0)+(ws.lanes||0), rb=(hs.osm_height||0)+(hs.levels||0);
+  $('#conf').innerHTML='<div class="note" style="margin:0">Road widths from OpenStreetMap: <b>'+pr(rw,nd)+'%</b> '+tag('measured')+' &middot; class default <b>'+pr(nd-rw,nd)+'%</b> '+tag('estimated')+'</div><div class="bar2"><i style="width:'+pr(rw,nd)+'%;background:#3ddc97"></i><i style="width:'+(100-pr(rw,nd))+'%;background:#5aa9ff"></i></div>'+
+    '<div class="note">Building heights from OpenStreetMap: <b>'+pr(rb,nb)+'%</b> '+tag('measured')+' &middot; assumed 3 floors <b>'+pr(nb-rb,nb)+'%</b> '+tag('estimated')+'</div><div class="bar2"><i style="width:'+pr(rb,nb)+'%;background:#3ddc97"></i><i style="width:'+(100-pr(rb,nb))+'%;background:#5aa9ff"></i></div>'+
+    '<div class="note">Shade maths: '+tag('computed')+' from the sun position and these heights.</div>';
+  $('#gaps').innerHTML=s.gaps.map(g=>'<div class="gap">'+g+'</div>').join('');
+  $('#attr').textContent=T.meta.attribution+'. Sun position: NOAA formulas.';
+  $('#siteNote').textContent='Centre '+T.meta.center.lat.toFixed(4)+', '+T.meta.center.lon.toFixed(4)+' · radius '+R+' m';
+}
+
+/* ---------- camera ---------- */
+function applyCam(){const s=Math.sin(cam.ph);camera.position.set(cam.tx+cam.r*s*Math.cos(cam.th),cam.ty+cam.r*Math.cos(cam.ph),cam.tz+cam.r*s*Math.sin(cam.th));camera.lookAt(cam.tx,cam.ty,cam.tz);camera.near=clamp(cam.r*.02,.5,20);camera.updateProjectionMatrix()}
+const ptr=new Map();let pinch=0;
+stage.addEventListener('pointerdown',e=>{orbit=false;$('#spin').textContent='Resume orbit';stage.setPointerCapture(e.pointerId);ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptr.size===2){const [a,b]=[...ptr.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y)}});
+stage.addEventListener('pointermove',e=>{const p=ptr.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+  if(ptr.size===1){cam.th-=dx*.006;cam.ph=clamp(cam.ph-dy*.005,.1,1.5)}else if(ptr.size===2){const [a,b]=[...ptr.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(pinch)cam.r=clamp(cam.r*pinch/d,20,2000);pinch=d}});
+const endP=e=>{ptr.delete(e.pointerId);pinch=0};stage.addEventListener('pointerup',endP);stage.addEventListener('pointercancel',endP);
+stage.addEventListener('wheel',e=>{e.preventDefault();orbit=false;cam.r=clamp(cam.r*Math.exp(e.deltaY*.0012),20,2000)},{passive:false});
+$('#spin').onclick=()=>{orbit=!orbit;$('#spin').textContent=orbit?'Pause orbit':'Resume orbit'};
+$('#top').onclick=()=>{orbit=false;cam.ph=.12;cam.r=R*2.4;$('#spin').textContent='Resume orbit'};
+
+/* ---------- layers + boot ---------- */
+const LAYERS=[['buildings','Buildings','#9fc4ff'],['roads','Roads and footpaths','#3a3f47'],['trees','Trees (OpenStreetMap)','#3fae5a'],['heat','Sun and shade overlay','#ff8a2b'],['walkOnly','Overlay on walkways only','#b9b4aa']];
+$('#layers').innerHTML=LAYERS.map(l=>'<div class="layer"><i style="background:'+l[2]+'"></i><span>'+l[1]+'</span><button class="sw" data-k="'+l[0]+'" role="switch" aria-checked="true" aria-label="'+l[1]+'"></button></div>').join('');
+$('#layers').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;const k=b.dataset.k;layers[k]=!layers[k];b.setAttribute('aria-checked',String(layers[k]));if(k==='walkOnly'&&shade)setHour(+$('#hour').value)};
+function applyLayers(){if(!group)return;group.getObjectByName('buildings').visible=layers.buildings;group.getObjectByName('roads').visible=layers.roads;group.getObjectByName('trees').visible=layers.trees;heat.visible=layers.heat}
+let SH=null, WK=null;
+async function load(path){
+  $('#msg').style.display='grid'; $('#msg').textContent='Loading the twin...';
+  const base=path.slice(0,path.lastIndexOf('/')+1);
+  T=await (await fetch('data/'+path)).json(); shade=T.shade;
+  SH=new Uint8Array(await (await fetch('data/'+base+shade.file)).arrayBuffer());
+  WK=new Uint8Array(await (await fetch('data/'+base+shade.walk_file)).arrayBuffer());
+  build(); stats(); const sl=$('#hour'); sl.min=shade.hours[0]; sl.max=shade.hours[shade.hours.length-1]; sl.value=15; setHour(15); applyLayers(); $('#msg').style.display='none';
+}
+$('#hour').addEventListener('input',e=>setHour(+e.target.value));
+(async function boot(){
+  try{
+    const idx=await (await fetch('data/index.json')).json();
+    $('#site').innerHTML=idx.sites.map(s=>'<option value="'+s.twin+'">'+s.name+'</option>').join('');
+    $('#site').onchange=e=>load(e.target.value).catch(err=>{$('#msg').style.display='grid';$('#msg').textContent='Could not load: '+err.message});
+    await load(idx.sites[0].twin);
+  }catch(e){$('#msg').style.display='grid';$('#msg').textContent='Could not load the twin. Run scripts/serve.py and open http://localhost:8765/viewer.html. '+e.message}
+})();
+let last=performance.now();
+(function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(orbit)cam.th+=dt*.06;applyCam();applyLayers();renderer.render(scene,camera);requestAnimationFrame(frame)})(last);
+})();
+</script>
+</body>
+</html>

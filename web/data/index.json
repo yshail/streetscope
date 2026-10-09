@@ -1,0 +1,5 @@
+{"sites":[
+ {"id":"aiims","name":"AIIMS junction, New Delhi","twin":"aiims/twin.json"},
+ {"id":"connaught","name":"Connaught Place, New Delhi","twin":"connaught/twin.json"},
+ {"id":"shibuya","name":"Shibuya Crossing, Tokyo","twin":"shibuya/twin.json"}
+]}
