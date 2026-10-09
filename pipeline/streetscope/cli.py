@@ -7,7 +7,9 @@ import json
 from datetime import date
 from pathlib import Path
 
-from . import osm, shade, twin
+import numpy as np
+
+from . import canopy, osm, shade, twin
 
 
 def build_site(args: argparse.Namespace) -> Path:
@@ -22,6 +24,22 @@ def build_site(args: argparse.Namespace) -> Path:
         (out / "osm.raw.json").write_text(json.dumps({"elements": elements}), encoding="utf-8")
         print(f"downloaded {len(elements)} elements")
     t = twin.build(elements, args.lat, args.lon, args.radius, args.name)
+    if not args.no_canopy:
+        cache = out / "canopy.bin"
+        try:
+            n = shade.Grid(args.radius, 1.0).n
+            if cache.exists():
+                chm = np.frombuffer(cache.read_bytes(), dtype=np.uint8).reshape(n, n)
+                print("canopy map: using cached", cache)
+            else:
+                print("canopy map: reading a window from AWS Open Data...")
+                chm = canopy.to_grid(canopy.read_window(args.lat, args.lon, args.radius), args.lat, args.lon, args.radius)
+                cache.write_bytes(chm.tobytes())
+            info = canopy.apply(t, chm)
+            print(f"canopy map: {info['tree_tops_found']} tree tops, {info['canopy_cover_pct']}% cover, "
+                  f"{info['osm_trees']} trees from OpenStreetMap, {info['trees_total']} in total")
+        except canopy.CanopyUnavailable as exc:
+            print("canopy map skipped:", exc)
     day = date.fromisoformat(args.date)
     stack, meta, walk2 = shade.compute(t, day, args.tz, list(range(6, 19)))
     t["shade"] = meta
@@ -46,6 +64,7 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--name", required=True)
     b.add_argument("--out", default="web/data")
     b.add_argument("--osm", help="use a saved Overpass JSON instead of downloading")
+    b.add_argument("--no-canopy", action="store_true", help="skip the canopy height map")
     b.add_argument("--date", default=date.today().isoformat())
     b.add_argument("--tz", type=float, default=5.5, help="hours from UTC at the site")
     b.set_defaults(fn=build_site)

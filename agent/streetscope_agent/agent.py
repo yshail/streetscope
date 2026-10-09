@@ -127,7 +127,7 @@ def offline_answer(site: T.Site, question: str) -> dict:
                      f"The sun is {r['sun_elevation_deg']} degrees above the horizon.")
     elif re.search(r"how many.*tree|tree.*count|count.*tree", q):
         c = fns["count_trees"]()
-        parts.append(f"OpenStreetMap shows {c['trees']} trees here. {c['note']}")
+        parts.append(f"{c['trees']} trees: {c['from_canopy_map']} from the canopy map and {c['from_openstreetmap']} from OpenStreetMap. {c['note']}")
     elif re.search(r"road|width|lane", q):
         words = [w for w in re.findall(r"[a-z]{4,}", q) if w not in ("road", "width", "lane", "lanes", "wide", "what", "much")]
         r = fns["measure_road"](words[-1] if words else "")

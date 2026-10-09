@@ -109,3 +109,72 @@ def test_walkable_surface_and_metric():
 def test_build_query_mentions_buildings():
     assert 'way["building"]' in build_query(1, 2, 300)
     assert 'way["building"]' not in build_query(1, 2, 300, with_buildings=False)
+
+
+# ---------- canopy map ----------
+from streetscope import canopy
+
+
+def test_quadkey_for_aiims_matches_the_real_tile():
+    assert canopy.quadkey(28.5672, 77.2100) == "123121303"
+
+
+def _blob(n, cx, cz, h, r):
+    a = np.zeros((n, n), dtype=np.uint8)
+    jj, ii = np.mgrid[0:n, 0:n]
+    a[(ii - cx) ** 2 + (jj - cz) ** 2 <= r * r] = h
+    return a
+
+
+def test_detects_two_separate_trees_and_ignores_shrubs():
+    g = shade.Grid(40, 1.0)                      # 80 x 80
+    a = _blob(g.n, 20, 20, 12, 4) + _blob(g.n, 60, 55, 9, 3) + _blob(g.n, 40, 10, 2, 3)  # 2 m shrub is ignored
+    tops = canopy.detect_tops(a, np.zeros_like(a, dtype=bool), g)
+    assert len(tops) == 2
+    assert {round(t["height_m"]) for t in tops} == {12, 9}
+    assert all(t["source"] == "canopy_map" for t in tops)
+
+
+def test_canopy_over_buildings_is_ignored():
+    g = shade.Grid(40, 1.0)
+    a = _blob(g.n, 20, 20, 12, 4)
+    blocked = np.zeros(a.shape, dtype=bool)
+    blocked[10:30, 10:30] = True
+    assert canopy.detect_tops(a, blocked, g) == []
+
+
+def test_merge_keeps_osm_trees_and_skips_duplicates():
+    osm_t = [{"x": 0.0, "z": 0.0, "height_m": 7, "crown_r": 2.6, "source": "osm"}]
+    tops = [{"x": 1.0, "z": 0.5, "height_m": 8, "crown_r": 2.4, "source": "canopy_map"},
+            {"x": 20.0, "z": 0.0, "height_m": 9, "crown_r": 2.7, "source": "canopy_map"}]
+    out = canopy.merge_trees(osm_t, tops)
+    assert len(out) == 2 and out[0]["source"] == "osm" and out[1]["x"] == 20.0
+
+
+def test_to_grid_puts_a_mercator_pixel_at_the_right_place():
+    lat, lon = 28.5672, 77.21
+    cx, cy = canopy.lonlat_to_mercator(lat, lon)
+    res = 1.2
+    data = np.zeros((200, 200), dtype=np.uint8)
+    # a 15 m canopy pixel exactly 30 ground metres east of the centre
+    k = 1 / math.cos(math.radians(lat))
+    x0, y0 = cx - 100 * res, cy + 100 * res
+    col = int((cx + 30 * k - x0) / res)
+    data[100, col] = 15
+    grid = canopy.to_grid({"data": data, "x0": x0, "y0": y0, "res": res}, lat, lon, 50, 1.0)
+    jj, ii = np.nonzero(grid == 15)
+    assert len(ii) >= 1
+    xs = -50 + (ii + 0.5)
+    assert abs(float(xs.mean()) - 30) < 2.0 and abs(float((-50 + (jj + 0.5)).mean())) < 2.0
+
+
+def test_apply_updates_stats_and_gaps():
+    ring = [[-30, -30], [-20, -30], [-20, -20], [-30, -20]]
+    t = {"meta": {"center": {"lat": 28.5672, "lon": 77.21}, "radius_m": 40, "attribution": "OSM"},
+         "buildings": [{"footprint": ring, "height_m": 10}], "trees": [], "roads": [],
+         "stats": {"trees": 0, "gaps": ["OpenStreetMap maps only 0 trees here."]}}
+    g = shade.Grid(40, 1.0)
+    info = canopy.apply(t, _blob(g.n, 55, 55, 10, 4))
+    assert info["tree_tops_found"] == 1 and t["stats"]["trees"] == 1
+    assert not any("OpenStreetMap maps only" in x for x in t["stats"]["gaps"])
+    assert "Meta" in t["meta"]["attribution"]

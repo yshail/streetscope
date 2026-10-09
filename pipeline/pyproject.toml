@@ -5,8 +5,12 @@ description = "Twin Builder: open data in, measured street twin out"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.26"]
 
+
+
+
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+canopy = ["rasterio>=1.4"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -21,14 +21,15 @@ Cities plan streets from flat maps and old drawings. Heat is 3D: shade depends o
 ## Honest limits
 
 - Level of data: all sites here are built from open data only. Where LiDAR or an own scan exists, it should replace the assumed numbers.
-- OpenStreetMap under-counts trees and often lacks widths and heights. The viewer shows the percentages, for example 17% of building heights are real at the AIIMS site.
+- OpenStreetMap often lacks widths and heights. The viewer shows the percentages, for example 17% of building heights are real at the AIIMS site.
+- Trees come from OpenStreetMap plus the Meta and WRI 1 m canopy height map (AWS Open Data). At AIIMS that is 369 tree tops and 24% cover where OpenStreetMap mapped none. The map's average error is 2.8 m and touching crowns merge, so counts are a lower bound. Dense Shibuya shows only 8 canopy tops, which is true to a concrete district.
 - Planted-tree results assume an 8 m tree with a 3 m crown. Costs use an assumed unit rate and are not quotes.
 - The simulator demo is not a calibrated traffic model. Its bus-lane result assumes 40% of car trips move to buses.
 
 ## Run it
 
 ```bash
-python -m pip install numpy pytest strands-agents boto3
+python -m pip install numpy pytest rasterio strands-agents boto3
 python scripts/serve.py            # http://localhost:8765/  (viewer.html, earth.html, demo/)
 python scripts/dev_api.py          # http://localhost:8766/ask  (the doctor; add USE_LLM=0 for offline only)
 ```
@@ -42,9 +43,9 @@ set PYTHONPATH=pipeline
 python -m streetscope build --lat 28.5672 --lon 77.2100 --radius 300 --name aiims --out web/data
 ```
 
-Add it to `web/data/index.json` to see it in the viewer. Use `--tz` for the site's UTC offset and `--date` for the day to model.
+The canopy window is cached as `canopy.bin` in the site folder; use `--no-canopy` to skip it. Add the site to `web/data/index.json` to see it in the viewer. Use `--tz` for the site's UTC offset and `--date` for the day to model.
 
-Tests (24):
+Tests (30):
 
 ```bash
 set PYTHONPATH=pipeline;agent
@@ -83,7 +84,8 @@ OpenStreetMap (Overpass) --> Twin Builder (numpy) --> twin.json + shade.bin + wa
 - Sun position: NOAA general solar position formulas.
 - 3D rendering: three.js (MIT) and CesiumJS (Apache 2.0). Google Photorealistic 3D Tiles are display only under Google's terms: no geodata extraction, no object detection on the tiles.
 - Fonts: Big Shoulders Display, Hanken Grotesk, JetBrains Mono (SIL OFL) via Google Fonts.
-- Planned: Meta and WRI canopy height map (CC BY 4.0, AWS Open Data) and USGS 3DEP LiDAR (AWS Open Data) for levels 1 and 2.
+- Trees: Meta and WRI canopy height map, CC BY 4.0, read from AWS Open Data with rasterio.
+- Planned: USGS 3DEP LiDAR (AWS Open Data) for level 1 sites in the US.
 
 ## Rules check
 

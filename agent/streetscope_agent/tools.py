@@ -69,9 +69,17 @@ def count_trees(site: Site) -> dict:
     trees = site.twin["trees"]
     canopy = sum(math.pi * t["crown_r"] ** 2 for t in trees)
     area = (2 * site.twin["meta"]["radius_m"]) ** 2
-    return {"trees": len(trees), "source": "OpenStreetMap", "canopy_m2": round(canopy),
-            "canopy_pct_of_area": round(100 * canopy / area, 2),
-            "note": "OpenStreetMap under-counts trees. A canopy map or point cloud would give the real number."}
+    info = site.twin["stats"].get("canopy")
+    out = {"trees": len(trees), "from_openstreetmap": sum(1 for t in trees if t.get("source") == "osm"),
+           "from_canopy_map": sum(1 for t in trees if t.get("source") == "canopy_map"),
+           "crown_area_m2": round(canopy), "crown_area_pct_of_site": round(100 * canopy / area, 2)}
+    if info:
+        out["canopy_cover_pct"] = info["canopy_cover_pct"]
+        out["note"] = ("Trees from the satellite canopy map are estimates (average height error 2.8 m). "
+                       "Touching crowns merge, so the count is a lower bound.")
+    else:
+        out["note"] = "Only OpenStreetMap trees are counted, and it under-counts. A canopy map or point cloud would give the real number."
+    return out
 
 
 def _hour_index(site: Site, hour: int) -> int:
