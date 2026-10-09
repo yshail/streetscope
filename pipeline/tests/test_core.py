@@ -178,3 +178,84 @@ def test_apply_updates_stats_and_gaps():
     assert info["tree_tops_found"] == 1 and t["stats"]["trees"] == 1
     assert not any("OpenStreetMap maps only" in x for x in t["stats"]["gaps"])
     assert "Meta" in t["meta"]["attribution"]
+
+
+# ---------- LiDAR ----------
+from streetscope import lidar
+
+
+def _fake_cloud():
+    xs, zs = np.meshgrid(np.arange(-60, 60, 0.5), np.arange(-60, 60, 0.5))
+    x, z = xs.ravel(), zs.ravel()
+    h = np.full(x.shape, 10.0)           # flat ground at 10 m above the datum
+    cls = np.full(x.shape, 2)
+    roof = (x >= 0) & (x <= 20) & (z >= 0) & (z <= 20)
+    h[roof], cls[roof] = 40.0, 6          # a 30 m building
+    tree = ((x + 30) ** 2 + (z + 30) ** 2) <= 9
+    h[tree], cls[tree] = 19.0, 5          # a 9 m tree
+    nr = np.ones(x.shape, dtype=int)
+    nr[tree] = 3                           # leaves give several returns per pulse, roofs give one
+    return {"x": x, "z": z, "h": h, "cls": cls, "nr": nr}
+
+
+def test_lidar_rasters_give_height_above_ground():
+    r = lidar.rasterize(_fake_cloud(), 60)
+    g = shade.Grid(60, 1.0)
+    assert abs(r["agl"][g.idx(10, g.z0), g.idx(10, g.x0)] - 30) < 0.5
+    assert abs(r["agl"][g.idx(-50, g.z0), g.idx(-50, g.x0)]) < 0.5
+    assert abs(r["veg"][g.idx(-30, g.z0), g.idx(-30, g.x0)] - 9) < 0.5
+
+
+def test_lidar_replaces_assumed_heights_and_finds_trees():
+    twin_ = {"meta": {"center": {"lat": 28.5672, "lon": 77.21}, "radius_m": 60, "attribution": "OSM"},
+             "buildings": [{"id": 1, "footprint": [[0, 0], [20, 0], [20, 20], [0, 20]], "height_m": 9.6, "height_source": "default"},
+                           {"id": 2, "footprint": [[40, 40], [50, 40], [50, 50], [40, 50]], "height_m": 9.6, "height_source": "default"}],
+             "trees": [], "roads": [],
+             "stats": {"trees": 0, "gaps": ["OpenStreetMap maps only 0 trees here."], "building_height_sources": {"default": 2}}}
+    info = lidar.apply(twin_, lidar.rasterize(_fake_cloud(), 60), "FAKE_2020")
+    b = twin_["buildings"]
+    assert b[0]["height_source"] == "lidar" and abs(b[0]["height_m"] - 30) < 1
+    assert b[1]["height_source"] == "default"          # flat ground inside the footprint: not a roof
+    assert info["tree_tops_found"] == 1 and twin_["trees"][0]["source"] == "lidar"
+    assert twin_["meta"]["data_level"] == 1
+    assert twin_["stats"]["building_height_sources"] == {"lidar": 1, "default": 1}
+
+
+def test_lidar_cache_round_trip(tmp_path):
+    r = lidar.rasterize(_fake_cloud(), 60)
+    lidar.save(tmp_path / "l.npz", r)
+    r2 = lidar.load(tmp_path / "l.npz")
+    assert abs(float(r2["agl"].max()) - float(r["agl"].max())) < 0.11
+
+
+def test_find_projects_picks_newest_first():
+    sq = [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]
+    idx = {"features": [
+        {"properties": {"name": "NY_Old_2012", "count": 5, "url": "u1"}, "geometry": {"type": "Polygon", "coordinates": sq}},
+        {"properties": {"name": "NY_New_2019", "count": 1, "url": "u2"}, "geometry": {"type": "Polygon", "coordinates": sq}},
+        {"properties": {"name": "Far_2022", "count": 9, "url": "u3"}, "geometry": {"type": "Polygon", "coordinates": [[[50, 50], [60, 50], [60, 60], [50, 50]]]}}]}
+    hits = lidar.find_projects(5, 5, idx)
+    assert [h["name"] for h in hits] == ["NY_New_2019", "NY_Old_2012"]
+
+
+def test_ept_depth_choice():
+    class E(lidar.Ept):
+        def __init__(self):
+            self.bounds = [0, 0, 0, 62980, 62980, 62980]
+            self.span = 256
+    assert E().depth_for(2.0) == 7
+
+
+def test_unlabelled_survey_finds_trees_from_multiple_returns_not_roofs():
+    cloud = _fake_cloud()
+    cloud["cls"] = np.where(np.isin(cloud["cls"], (5, 6)), 1, cloud["cls"])   # survey only labelled ground
+    twin_ = {"meta": {"center": {"lat": 28.5672, "lon": 77.21}, "radius_m": 60, "attribution": "OSM"},
+             "buildings": [{"id": 1, "footprint": [[0, 0], [20, 0], [20, 20], [0, 20]], "height_m": 9.6, "height_source": "default"}],
+             "trees": [], "roads": [],
+             "stats": {"trees": 0, "gaps": [], "building_height_sources": {"default": 1}}}
+    r = lidar.rasterize(cloud, 60)
+    assert r["veg_method"] == "returns"
+    info = lidar.apply(twin_, r, "FAKE")
+    assert info["tree_tops_found"] == 1               # the 30 m roof has single returns, so it is not a tree
+    assert twin_["buildings"][0]["height_source"] == "lidar"
+    assert "multiple-return" in twin_["stats"]["canopy"]["note"]

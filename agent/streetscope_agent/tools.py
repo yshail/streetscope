@@ -44,7 +44,7 @@ def site_summary(site: Site) -> dict:
         "name": site.name, "centre": site.twin["meta"]["center"], "radius_m": site.twin["meta"]["radius_m"],
         "road_ways": s["road_ways"], "buildings": s["buildings"], "trees_mapped": s["trees"],
         "bus_stops": s["bus_stops"], "crossings": s["crossings"],
-        "data_level": 3, "shade_date": site.meta["date"], "known_gaps": s["gaps"],
+        "data_level": site.twin["meta"].get("data_level", 3), "shade_date": site.meta["date"], "known_gaps": s["gaps"],
     }
 
 

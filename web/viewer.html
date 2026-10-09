@@ -66,7 +66,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <section><h3>How to read the colours</h3>
       <div class="note" style="margin:0">Buildings are <b style="color:#9fc4ff">blue</b> when OpenStreetMap has a real height or floor count, and <b style="color:#c9a98a">tan</b> when the height is assumed. Nothing is hidden.</div>
     </section>
-    <section><h3>Data ladder</h3><p class="note" style="margin:0">This site is <b>level 3</b>: built from open data only. Level 1 and 2 (LiDAR, own scan) replace the assumed numbers when they exist.</p></section>
+    <section><h3>Data ladder</h3><p class="note" style="margin:0" id="lvl"></p></section>
   </aside>
 
   <main class="stage" id="stage">
@@ -186,7 +186,7 @@ function build(){
   heat.position.set(shade.origin[0]+n*shade.cell_m/2,.09,shade.origin[1]+n*shade.cell_m/2); heat.renderOrder=3; group.add(heat);
   scene.add(group);
   const sc=sunL.shadow.camera; Object.assign(sc,{left:-R*1.1,right:R*1.1,top:R*1.1,bottom:-R*1.1,near:10,far:R*4}); sc.updateProjectionMatrix();
-  cam.r=R*2.5; cam.ph=.85;
+  const tall=Math.max(0,...T.buildings.map(b=>b.height_m)); cam.r=Math.max(R*2.5,tall*2.6); cam.ph=.85;
 }
 function setHour(h){
   const k=shade.hours.indexOf(h); if(k<0)return;
@@ -224,12 +224,13 @@ function stats(){
   const s=T.stats, km=k=>(s.road_km[k]||0).toFixed(2)+' km';
   const ws=s.road_width_sources, hs=s.building_height_sources, nd=(ws.osm_width||0)+(ws.lanes||0)+(ws.default||0), nb=s.buildings;
   $('#stats').innerHTML='<div><span>Road ways '+tag('measured')+'</span><b>'+s.road_ways+'</b></div><div><span>Main roads</span><b>'+km('main')+'</b></div><div><span>Secondary</span><b>'+km('mid')+'</b></div><div><span>Local streets</span><b>'+km('local')+'</b></div><div><span>Footpaths and steps</span><b>'+km('walk')+'</b></div><div><span>Buildings</span><b>'+nb+'</b></div><div><span>Trees '+(s.canopy?tag('estimated'):'')+'</span><b>'+s.trees+'</b></div>'+(s.canopy?'<div><span>Canopy cover</span><b>'+s.canopy.canopy_cover_pct+'%</b></div>':'')+'<div><span>Bus stops</span><b>'+s.bus_stops+'</b></div><div><span>Crossings</span><b>'+s.crossings+'</b></div>';
-  const pr=(a,b)=>b?Math.round(100*a/b):0, rw=(ws.osm_width||0)+(ws.lanes||0), rb=(hs.osm_height||0)+(hs.levels||0);
+  const pr=(a,b)=>b?Math.round(100*a/b):0, rw=(ws.osm_width||0)+(ws.lanes||0), rb=(hs.osm_height||0)+(hs.levels||0)+(hs.lidar||0);
   $('#conf').innerHTML='<div class="note" style="margin:0">Road widths from OpenStreetMap: <b>'+pr(rw,nd)+'%</b> '+tag('measured')+' &middot; class default <b>'+pr(nd-rw,nd)+'%</b> '+tag('estimated')+'</div><div class="bar2"><i style="width:'+pr(rw,nd)+'%;background:#3ddc97"></i><i style="width:'+(100-pr(rw,nd))+'%;background:#5aa9ff"></i></div>'+
-    '<div class="note">Building heights from OpenStreetMap: <b>'+pr(rb,nb)+'%</b> '+tag('measured')+' &middot; assumed 3 floors <b>'+pr(nb-rb,nb)+'%</b> '+tag('estimated')+'</div><div class="bar2"><i style="width:'+pr(rb,nb)+'%;background:#3ddc97"></i><i style="width:'+(100-pr(rb,nb))+'%;background:#5aa9ff"></i></div>'+
-    (s.canopy?'<div class="note">Trees from the satellite canopy map: <b>'+s.canopy.tree_tops_found+'</b> '+tag('estimated')+' (error about '+s.canopy.map_error_m+' m) &middot; from OpenStreetMap: <b>'+s.canopy.osm_trees+'</b> '+tag('measured')+'</div>':'')+
+    '<div class="note">Building heights, measured'+(hs.lidar?' (LiDAR '+hs.lidar+')':' from OpenStreetMap')+': <b>'+pr(rb,nb)+'%</b> '+tag('measured')+' &middot; assumed 3 floors <b>'+pr(nb-rb,nb)+'%</b> '+tag('estimated')+'</div><div class="bar2"><i style="width:'+pr(rb,nb)+'%;background:#3ddc97"></i><i style="width:'+(100-pr(rb,nb))+'%;background:#5aa9ff"></i></div>'+
+    (s.canopy?'<div class="note">Trees from '+(s.lidar?'LiDAR returns':'the satellite canopy map')+': <b>'+s.canopy.tree_tops_found+'</b> '+tag('estimated')+' ('+(s.lidar?'touching crowns merge':'error about '+s.canopy.map_error_m+' m')+') &middot; from OpenStreetMap: <b>'+s.canopy.osm_trees+'</b> '+tag('measured')+'</div>':'')+
     '<div class="note">Shade maths: '+tag('computed')+' from the sun position and these heights.</div>';
   $('#gaps').innerHTML=s.gaps.map(g=>'<div class="gap">'+g+'</div>').join('');
+  $('#lvl').innerHTML=T.meta.data_level===1?'This site is <b>level 1</b>: building heights are measured by USGS airborne LiDAR where the roof was seen, and OpenStreetMap supplies the footprints.':'This site is <b>level 3</b>: built from open data only. Level 1 and 2 (LiDAR, own scan) replace the assumed numbers when they exist.';
   $('#attr').textContent=T.meta.attribution+'. Sun position: NOAA formulas.';
   $('#siteNote').textContent='Centre '+T.meta.center.lat.toFixed(4)+', '+T.meta.center.lon.toFixed(4)+' · radius '+R+' m';
 }

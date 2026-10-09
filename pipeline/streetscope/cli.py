@@ -9,7 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import canopy, osm, shade, twin
+from . import canopy, lidar, osm, shade, twin
 
 
 def build_site(args: argparse.Namespace) -> Path:
@@ -24,7 +24,29 @@ def build_site(args: argparse.Namespace) -> Path:
         (out / "osm.raw.json").write_text(json.dumps({"elements": elements}), encoding="utf-8")
         print(f"downloaded {len(elements)} elements")
     t = twin.build(elements, args.lat, args.lon, args.radius, args.name)
-    if not args.no_canopy:
+    got_lidar = False
+    if args.lidar != "off":
+        lcache = out / "lidar.npz"
+        try:
+            if lcache.exists():
+                r, name = lidar.load(lcache), json.loads((out / "lidar.json").read_text())["project"]
+                print("lidar: using cached", lcache)
+            else:
+                projects = lidar.find_projects(args.lat, args.lon)
+                if not projects:
+                    raise lidar.LidarUnavailable("no USGS 3DEP project covers this point")
+                print(f"lidar: reading {projects[0]['name']} from AWS Open Data (can take a minute)...")
+                pts = lidar.read_points(args.lat, args.lon, args.radius, projects[0])
+                r, name = lidar.rasterize(pts, args.radius), projects[0]["name"]
+                lidar.save(lcache, r)
+                (out / "lidar.json").write_text(json.dumps({"project": name}))
+            info = lidar.apply(t, r, name)
+            got_lidar = True
+            print(f"lidar: measured {info['buildings_measured']} of {info['buildings_total']} building heights, "
+                  f"{info['tree_tops_found']} tree tops, {info['canopy_cover_pct']}% cover")
+        except lidar.LidarUnavailable as exc:
+            print("lidar skipped:", exc)
+    if not args.no_canopy and not got_lidar:
         cache = out / "canopy.bin"
         try:
             n = shade.Grid(args.radius, 1.0).n
@@ -65,6 +87,7 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--out", default="web/data")
     b.add_argument("--osm", help="use a saved Overpass JSON instead of downloading")
     b.add_argument("--no-canopy", action="store_true", help="skip the canopy height map")
+    b.add_argument("--lidar", choices=["auto", "off"], default="auto", help="use USGS 3DEP LiDAR where it exists (US only)")
     b.add_argument("--date", default=date.today().isoformat())
     b.add_argument("--tz", type=float, default=5.5, help="hours from UTC at the site")
     b.set_defaults(fn=build_site)

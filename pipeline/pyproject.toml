@@ -11,6 +11,7 @@ dependencies = ["numpy>=1.26"]
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 canopy = ["rasterio>=1.4"]
+lidar = ["laspy[lazrs]>=2.5", "pyproj>=3.6"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
