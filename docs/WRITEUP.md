@@ -16,6 +16,8 @@ A city engineer has to decide where to plant the next 100 trees along a busy jun
 6. **Doctor** (`agent/`). Claude Sonnet 5.5 with eleven allow-listed tools. It cannot read raw data. A number checker traces every figure in its answer to a tool result and flags any that did not come from one. It can write a short engineer's brief (where it hurts, what we would try, how sure we are). Locally it runs through the Claude Code command line with the user's own login, so no API key is needed; the tools reach it through a small MCP server and it gets no file, shell or web access. When deployed it runs on Amazon Bedrock. Without a key it falls back to clearly labelled offline templates over the same tools.
 7. **Real 3D page** (`web/earth.html`, CesiumJS). The same analysis on Google Photorealistic 3D Tiles (display only, per Google's terms), with cameras, glow and a guided tour. A simulator demo shows a generated junction with cars and signals.
 
+8. **GreenCityAI** (`app/`, React, TypeScript, CesiumJS, Three.js). The product face: a full-screen 3D city on Google Photorealistic 3D Tiles (or a dark open-data city without a key) with spatial infographics anchored to the map, click-to-fly junctions, an *Analyze Area* scan with three located findings, a Before / Proposed simulation with animated proposals and a metric strip, an effect-against-cost comparison, live weather and air quality, and a LiDAR point-cloud inspector with picking and measurement. Every number carries its basis: observed, computed, simulated, proposed or assumed.
+
 ## Results from the real data
 
 | Site | Data level | Shade finding | Traffic screen (simulated) |

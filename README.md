@@ -4,12 +4,36 @@
 
 Built for the WeMakeDevs x AWS *Environmental Hacks* (Heat and Water track), October 2026.
 
+## GreenCityAI: the 3D city app
+
+`http://localhost:8765/app/` is **GreenCityAI**, a full-screen urban digital twin built on top of the Streetscope engine (React, TypeScript, Vite, Tailwind, CesiumJS, Three.js; source in `app/`).
+
+![GreenCityAI explore view](docs/img/10-gc-explore.jpg)
+*Explore: the city fills the screen. Traffic flows glow along the roads (simulated), hot spots pulse, road widths are drawn as dimension lines, and live weather and air quality from Open-Meteo sit beside the computed shade.*
+
+| Mode | What happens |
+|---|---|
+| **Explore** | Orbit, pan, zoom. Hover and click junctions, roads, buildings, trees, bus stops and chargers. A click flies the camera in, tilts it, highlights the object and opens a slim panel: key numbers, data source, detected issues and a recommended action. |
+| **Analyze** | *Analyze Area* sweeps a scan across the junction, lights up roads, trees, stops and crossings in turn, then pins three findings to their places on the map. Each finding and intervention says whether it is observed, computed, simulated or hypothetical. *Explain with Claude* asks the doctor through your Claude Code login. |
+| **Simulate** | Before / Proposed. The proposals appear in a wave from the junction: a diversion route with travel times, signal control, a bus lane, an overbridge, street trees, a protected crossing, EV charger candidates. A strip compares peak load, peak speed, network delay, walkway shade, crown cover, crossings and assumed cost. |
+| **Compare** | Every intervention on one chart: simulated effect against assumed cost. Click one to preview it in 3D. |
+| **Point cloud** | Real USGS LiDAR (919,091 points at Dupont Circle, 403,857 at Times Square), coloured by class or height, with class toggles, point picking and a distance tool. Sites without LiDAR show the gaussian twin, labelled as generated. |
+
+![Analyze](docs/img/12-gc-analyze.jpg)
+![Simulate](docs/img/13-gc-simulate.jpg)
+![Point cloud](docs/img/14-gc-pointcloud.jpg)
+
+**Google Earth 3D:** open *Settings* (the gear), paste a Google Maps key with the Map Tiles API enabled, or a free Cesium ion token. The analysis then sits on Google Photorealistic 3D Tiles; overlay heights are sampled from the tiles so they sit on the real streets. A key saved in `earth.html` on the same server is reused. Without a key the app draws the city from open data on a dark Esri basemap, so it always works. The Google tiles are only displayed: every number comes from OpenStreetMap, LiDAR and the twin's own models, never from the tiles (measuring the tiles would break Google's terms).
+
+Rebuild the app after changing `app/src`: `cd app`, `npm install`, `npm run build` (writes `web/app`). Export LiDAR points for a US site: `set PYTHONPATH=pipeline` then `python -m streetscope.points --site web/data/dupont`.
+
 ## See it in 60 seconds
 
 Run `scripts/run_all.bat` (or the commands under *Run it*), then open these links:
 
 | Link | What you see |
 |---|---|
+| `http://localhost:8765/app/?site=dupont` | **GreenCityAI**: the 3D city app (Explore, Analyze, Simulate, Compare, Point cloud) |
 | `http://localhost:8765/` | Landing page with live headline numbers |
 | `viewer.html?site=dupont` | Dupont Circle as about 560,000 gaussian splats: watch the reveal, then use the fly-to buttons or double-click anywhere |
 | `viewer.html?site=aiims&fix=trees&view=top&overlay=1` | AIIMS junction with 134 planted street trees (lime green) and the sun and shade colours |
@@ -97,7 +121,7 @@ python -m streetscope build --lat 28.5672 --lon 77.2100 --radius 300 --name aiim
 
 Inside the US the builder reads USGS LiDAR automatically (`--lidar off` to skip); elsewhere it reads the canopy map (`--no-canopy` to skip). Both are cached in the site folder. Add the site to `web/data/index.json` to see it in the viewer. Use `--tz` for the site's UTC offset and `--date` for the day to model. `python scripts/rebuild_sites.py --cached` rebuilds all five sample sites from their saved downloads.
 
-Tests (64):
+Tests (65):
 
 ```bash
 set PYTHONPATH=pipeline;agent
@@ -136,7 +160,8 @@ canopy map / USGS LiDAR -->        |  shade engine, scenarios, traffic screen
 - Map data: (c) OpenStreetMap contributors, ODbL. Downloads use the Overpass API.
 - Sun position: NOAA general solar position formulas.
 - 3D rendering: three.js (MIT) and CesiumJS (Apache 2.0). Google Photorealistic 3D Tiles are display only under Google's terms: no geodata extraction, no object detection on the tiles.
-- Fonts: Big Shoulders Display, Hanken Grotesk, JetBrains Mono (SIL OFL) via Google Fonts.
+- Fonts: Big Shoulders Display, Hanken Grotesk, Inter, JetBrains Mono (SIL OFL) via Google Fonts.
+- GreenCityAI basemap: Esri World Dark Gray Canvas. Live weather and air quality: Open-Meteo (CC BY 4.0). Place search: OpenStreetMap Nominatim.
 - Trees: Meta and WRI canopy height map, CC BY 4.0, read from AWS Open Data with rasterio.
 - Heights: USGS 3D Elevation Program LiDAR, public domain, read from the AWS Open Data bucket `usgs-lidar-public` (Entwine Point Tiles). The pipeline finds the survey that covers a point, downloads only the octree nodes inside a 340 m window, and caches 1 m rasters as `lidar.npz`.
 - Traffic model: the BPR volume-delay curve (US Bureau of Public Roads, 1964), applied with our own assumed capacities.
@@ -156,7 +181,8 @@ While building: add your own honest list here before submitting, as the hackatho
 ## Layout
 
 ```
-pipeline/   Twin Builder: geo, osm, twin, shade, canopy, lidar, scenarios, traffic, cli + tests
+app/        GreenCityAI: React + TypeScript + Cesium app (builds into web/app)
+pipeline/   Twin Builder: geo, osm, twin, shade, canopy, lidar, points, scenarios, traffic, cli + tests
 agent/      Claude doctor (Claude Code, API or Bedrock), MCP tool server, tools, number verifier, Lambda handler + tests
 web/        viewer, gaussian splat renderer (gs.js), real 3D page, simulator demo, sample twins (data/)
 infra/      AWS SAM template
