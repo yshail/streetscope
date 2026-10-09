@@ -108,8 +108,9 @@ def test_refusal_raises(site):
 
 
 def test_status_without_keys_is_offline(monkeypatch):
-    for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "LLM_BACKEND"):
+    for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "LLM_BACKEND", "CLAUDE_CLI"):
         monkeypatch.delenv(k, raising=False)
+    monkeypatch.setattr(CA.shutil, "which", lambda name: None)     # no Claude Code on this machine either
     assert CA.llm_status()["mode"] == "offline" and CA.make_client() is None
     monkeypatch.setenv("LLM_BACKEND", "bedrock")
     st = CA.llm_status()

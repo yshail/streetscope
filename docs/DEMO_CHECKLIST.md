@@ -11,7 +11,9 @@
 
 ## Optional: live Claude answers
 
-Pick one. Type the key only in your own terminal, never in a file in the repo.
+Easiest: nothing to set. If Claude Code is installed and logged in (`claude` works in a terminal), the doctor uses it with your login.
+
+Or pick one of these. Type any key only in your own terminal, never in a file in the repo.
 
 - [ ] **Anthropic API:** in the terminal that runs the doctor, `set ANTHROPIC_API_KEY=...` then `python scripts/dev_api.py`. The first line printed names the model.
 - [ ] **Amazon Bedrock:** `aws configure` with your own credentials, turn on model access for Claude Sonnet 5.5 in the Bedrock console, then `set LLM_BACKEND=bedrock` and `python scripts/dev_api.py`.

@@ -45,7 +45,7 @@ def _resp(code: int, body: dict) -> dict:
 def status() -> dict:
     if os.environ.get("USE_LLM", "1") != "1":
         return {"mode": "offline", "model": None, "provider": None}
-    if os.environ.get("LLM_BACKEND") == "strands":
+    if CA.backend() == "strands":
         return {"mode": "llm", "model": A.DEFAULT_MODEL, "provider": "Amazon Bedrock (Strands)"}
     return CA.llm_status()
 

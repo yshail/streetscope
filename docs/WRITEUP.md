@@ -12,8 +12,8 @@ A city engineer has to decide where to plant the next 100 trees along a busy jun
 2. **Real-data viewer** (`web/viewer.html`, three.js). 3D twin, sun slider with *Play the day*, shade overlay, "how much is real" panel, "gaps we will not hide" list, and a 45-second guided tour.
 3. **Try a fix.** Plant street trees on the sunniest walkway spots, widen footpaths, or both. Shade, shaded walking area and an assumed cost are recomputed from the same maths.
 4. **Traffic screen** (`pipeline/streetscope/traffic.py`). The road network is split at junctions. Peak-hour trips come from building floor area plus through traffic at the edge, and are routed in four congestion-aware stages using the BPR delay curve. Junction areas are ranked by load and conflicts (links meeting, crossings, bus stops, signals). Each candidate fix (bus lane, signal timing, foot overbridge, route diversion, extra lane) is applied to the model and re-run, so every card shows a before and after. In 3D: load-coloured roads, moving dots that slow past capacity, pulsing numbered hot spots, and a preview of each fix on the street.
-5. **Gaussian splat view.** The twin redrawn as soft gaussian points (about 290,000 at Shibuya) lit by the real sun, with a reveal animation. Stylized, and labelled so.
-6. **Doctor** (`agent/`). Claude Sonnet 5.5 with eleven allow-listed tools. It cannot read raw data. A number checker traces every figure in its answer to a tool result and flags any that did not come from one. It can write a short engineer's brief (where it hurts, what we would try, how sure we are). It runs on the Anthropic API locally and on Amazon Bedrock when deployed. Without a key it falls back to clearly labelled offline templates over the same tools.
+5. **Gaussian view** (`web/gs.js`). A real 3D Gaussian Splatting renderer written for this project in WebGL2: anisotropic gaussians, EWA projection, a depth sort in a worker, back-to-front blending. The twin becomes about half a million gaussians (ground, road markings, facades with windows, roofs, leaf-like tree crowns), with ground shadows from the shade engine. It loads with a Luma-style reveal and moves with smooth arcing camera flights. It also opens a real trained capture (3DGS `.ply` or `.splat`) and exports the scene as `.splat`.
+6. **Doctor** (`agent/`). Claude Sonnet 5.5 with eleven allow-listed tools. It cannot read raw data. A number checker traces every figure in its answer to a tool result and flags any that did not come from one. It can write a short engineer's brief (where it hurts, what we would try, how sure we are). Locally it runs through the Claude Code command line with the user's own login, so no API key is needed; the tools reach it through a small MCP server and it gets no file, shell or web access. When deployed it runs on Amazon Bedrock. Without a key it falls back to clearly labelled offline templates over the same tools.
 7. **Real 3D page** (`web/earth.html`, CesiumJS). The same analysis on Google Photorealistic 3D Tiles (display only, per Google's terms), with cameras, glow and a guided tour. A simulator demo shows a generated junction with cars and signals.
 
 ## Results from the real data
@@ -31,7 +31,7 @@ A city engineer has to decide where to plant the next 100 trees along a busy jun
 - **Deterministic core.** Shade, widths, counts and traffic load come from code, not from a language model. The model only chooses which tool to call and explains the result.
 - **Verification.** Every number in a doctor answer is checked against tool output (`verify.py`, tested).
 - **Honesty on screen.** Tags on every number (measured, computed, estimated, simulated, assumed). Defaults are listed. Tree counts from satellite data are labelled a lower bound. Traffic results are labelled simulated and come with the sentence "No traffic counts were used."
-- **Tests.** 59 automated tests cover geometry, sun position, shadows, canopy and LiDAR processing, scenarios, the traffic screen, the verifier, the Claude tool loop (with a stand-in client) and the Lambda handler.
+- **Tests.** 64 automated tests cover geometry, sun position, shadows, canopy and LiDAR processing, scenarios, the traffic screen, the verifier, the Claude tool loop and the Claude Code path (with stand-ins), the MCP tool server and the Lambda handler. The Claude Code path was also run live.
 
 ## Limits we state plainly
 
@@ -39,7 +39,7 @@ A city engineer has to decide where to plant the next 100 trees along a busy jun
 - The two LiDAR surveys carry no vegetation labels, so trees come from multiple-return pulses. Touching crowns merge.
 - Tree fixes assume an 8 m tree with a 3 m crown. Costs use assumed unit rates and are not quotes.
 - The traffic screen has no counts. Demand is derived from floor area and scaled so the busiest links sit near capacity, so it ranks places and compares fixes; it does not predict vehicle numbers. A real study needs counts.
-- The splat view is stylized from the twin geometry, not a photo-trained 3D Gaussian Splatting capture.
+- The gaussian view is real 3DGS rendering, but the twin's gaussians are generated from map data, not trained from photos. A photo-real twin needs a scan (level 2), which the same viewer can open.
 - The AWS template is linted but not yet deployed from this repository.
 
 ## AWS and open source used
@@ -51,7 +51,7 @@ A city engineer has to decide where to plant the next 100 trees along a busy jun
 
 ## AI tools used
 
-- In the product: Claude Sonnet 5.5 (Anthropic), through the Anthropic API or Amazon Bedrock.
+- In the product: Claude Sonnet 5.5 (Anthropic), through Claude Code locally, the Anthropic API, or Amazon Bedrock.
 - While building: _add your own list here before you submit. The hackathon asks for an honest list of the AI tools used._
 
 ## Rules check

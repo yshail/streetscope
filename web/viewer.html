@@ -30,6 +30,11 @@ select{width:100%;background:#070c12;color:var(--ice);border:1px solid var(--lin
 .sw[aria-checked="true"]{background:var(--blue)}.sw[aria-checked="true"]::after{left:18px;background:#fff}
 .stage{grid-area:stage;position:relative;min-height:0;background:#04070b;touch-action:none;cursor:grab}
 #gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+#gs{position:absolute;inset:0;width:100%;height:100%;display:none;background:radial-gradient(120% 90% at 50% 28%,#26384d 0%,#0e1722 55%,#05080d 100%)}
+.poi{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:none;gap:6px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:calc(100% - 32px);z-index:2}
+.pchip{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#cfe0f0;background:rgba(5,8,13,.72);border:1px solid var(--line2);padding:6px 10px;cursor:pointer;backdrop-filter:blur(4px)}
+.pchip:hover{border-color:var(--ice)}.pchip.on{background:var(--ice);color:#04070b;border-color:var(--ice)}
+.pchip{flex:none}
 .hud{position:absolute;left:14px;top:14px;font:400 11px/1.6 var(--mono);color:#cfe0f0;background:rgba(5,8,13,.72);padding:6px 9px;border:1px solid var(--line2);pointer-events:none}
 .hud b{color:#fff;font-weight:500}
 .legend{position:absolute;right:14px;top:14px;background:rgba(5,8,13,.85);border:1px solid var(--line2);padding:8px 10px;font:400 11px var(--mono);display:flex;flex-direction:column;gap:4px}
@@ -61,7 +66,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .t-r{color:var(--good)}.t-s{color:#c79bff}
 .badge{font:500 10px var(--mono);letter-spacing:.04em;padding:2px 7px;border:1px solid var(--line2);color:var(--dim);text-transform:none}
 .badge.on{color:#e3ccff;border-color:#9b6bff;box-shadow:0 0 12px rgba(155,107,255,.35)}
-.cap{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:min(620px,calc(100% - 32px));background:rgba(5,8,13,.9);border:1px solid var(--line2);border-left:3px solid var(--ice);padding:10px 14px;font-size:13.5px;color:var(--ink);display:none}
+.cap{position:absolute;left:50%;bottom:62px;transform:translateX(-50%);width:min(620px,calc(100% - 32px));background:rgba(5,8,13,.9);border:1px solid var(--line2);border-left:3px solid var(--ice);padding:10px 14px;font-size:13.5px;color:var(--ink);display:none}
 .cap b{font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);display:block;margin-bottom:3px}
 #ans{white-space:pre-wrap}
 .legend .tl{display:none}.legend.tr .tl{display:block}.legend.tr .sl{display:none}
@@ -80,6 +85,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   <aside class="panel left">
     <section><h3>Site</h3><select id="site"></select><p class="note" id="siteNote"></p></section>
     <section><h3>Layers</h3><div id="layers"></div></section>
+    <section><h3>Gaussian view <span class="sub">real 3DGS renderer</span></h3>
+      <p class="note" id="gsNote" style="margin:0 0 8px">Loading...</p>
+      <div style="display:flex;flex-wrap:wrap;gap:6px"><button class="btn" id="gsOpen">Open .ply / .splat</button><button class="btn" id="gsSave">Download .splat</button><button class="btn" id="gsFlip" hidden>Flip up</button><button class="btn" id="gsBack" hidden>Back to twin</button></div>
+      <input type="file" id="gsFile" accept=".ply,.splat" hidden>
+      <p class="note">Drop your own trained capture (LichtFeld, gsplat, Inria 3DGS .ply) on the map to see it in the same renderer. Double-click anywhere to fly there.</p></section>
     <section><h3>Try a fix <span class="sub">real shade maths</span></h3>
       <div id="fixes" style="display:flex;flex-direction:column;gap:6px"></div>
       <div id="fixres" class="note" style="margin-top:10px"></div></section>
@@ -94,7 +104,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   </aside>
 
   <main class="stage" id="stage">
+    <canvas id="gs"></canvas>
     <canvas id="gl"></canvas>
+    <div class="poi" id="poi"></div>
     <div class="hud" id="hud"></div>
     <div class="legend" id="legend"><div class="sl"><i style="background:#ff8a2b"></i>sun on the ground</div><div class="sl"><i style="background:#3fdc90"></i>tree shade</div><div class="sl"><i style="background:#2a64d8"></i>building shade</div>
       <div class="tl"><i style="background:#3ddc97"></i>traffic under 60% of capacity</div><div class="tl"><i style="background:#ffd84a"></i>60 to 85%</div><div class="tl"><i style="background:#ff9a2e"></i>85 to 100%</div><div class="tl"><i style="background:#ff4d3d"></i>over capacity (queues)</div><div class="tl" style="color:var(--dim)">simulated, assumed demand</div></div>
@@ -124,11 +136,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <button class="btn" id="spin">Pause orbit</button>
     <button class="btn" id="top">Top view</button>
     <button class="btn" id="play" aria-pressed="false">Play the day</button>
-    <button class="btn" id="splatBtn" aria-pressed="false">Gaussian splats</button>
+    <button class="btn" id="splatBtn" aria-pressed="false">Gaussian view</button>
     <button class="btn" id="tour" aria-pressed="false">Guided tour</button>
   </footer>
 </div>
 <script src="config.js"></script>
+<script src="gs.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
@@ -142,7 +155,7 @@ const cam={tx:0,ty:4,tz:0,r:520,th:.8,ph:1.0}, layers={buildings:true,roads:true
 
 /* ---------- renderer ---------- */
 const stage=$('#stage'), canvas=$('#gl');
-try{renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true})}catch(e){$('#msg').textContent='This page needs WebGL.';return}
+try{renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true})}catch(e){$('#msg').textContent='This page needs WebGL.';return}
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 scene=new THREE.Scene(); scene.background=new THREE.Color(0xa9c6e0); scene.fog=new THREE.FogExp2(0xa9c6e0,.0008);
 camera=new THREE.PerspectiveCamera(48,1,1,4000);
@@ -168,7 +181,7 @@ function ribbon(pts,w,y){
 function build(){
   if(group)scene.remove(group);
   group=new THREE.Group(); R=T.meta.radius_m;
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(R*6,R*6).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0x7d8b6c}));ground.position.y=-.03;ground.receiveShadow=true;group.add(ground);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(R*6,R*6).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0x7d8b6c}));ground.position.y=-.03;ground.receiveShadow=true;ground.name='ground';group.add(ground);
   // roads, one merged mesh per class
   const roadsG=new THREE.Group(); roadsG.name='roads';
   for(const cls in CLS){
@@ -205,7 +218,7 @@ function build(){
   }
   group.add(tg);
   // stops and crossings
-  const sg=new THREE.Group();
+  const sg=new THREE.Group(); sg.name='marks';
   T.stops.forEach(s=>{const m=new THREE.Mesh(new THREE.BoxGeometry(3,3.2,1.2),new THREE.MeshLambertMaterial({color:0x2f6bd6}));m.position.set(s.x,1.6,s.z);m.castShadow=true;sg.add(m)});
   T.crossings.forEach(s=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(.9,.9,.1,10),new THREE.MeshBasicMaterial({color:0xffd24a}));m.position.set(s.x,.2,s.z);sg.add(m)});
   T.ev.forEach(s=>{const m=new THREE.Mesh(new THREE.BoxGeometry(2,2.6,2),new THREE.MeshBasicMaterial({color:0x3dd6ff}));m.position.set(s.x,1.3,s.z);sg.add(m)});
@@ -237,8 +250,8 @@ function setHour(h){
   const dx=Math.sin(az)*Math.cos(el), dz=-Math.cos(az)*Math.cos(el), dy=Math.sin(el);
   sunL.position.set(dx*R*3,Math.max(dy,.02)*R*3,dz*R*3); sunDir.set(dx,Math.max(dy,.02),dz).normalize(); sunUp=s.el>2; sunL.intensity=s.el>2?1:.05; hemi.intensity=s.el>2?.85:.35;
   $('#hourOut').textContent=String(h).padStart(2,'0')+':00  sun '+Math.round(s.el)+'°';
-  const p=(curSc?curSc.walk_shade_pct:shade.walk_shade_pct)[k]; $('#hud').innerHTML='HOUR <b>'+String(h).padStart(2,'0')+':00</b> &nbsp; SUN ELEV <b>'+s.el+'°</b> AZ <b>'+s.az+'°</b><br>WALKWAY IN SHADE <b>'+(p==null?'night':p+'%')+'</b>';
-  drawChart(h);
+  const p=(curSc?curSc.walk_shade_pct:shade.walk_shade_pct)[k]; $('#hud').innerHTML='HOUR <b>'+String(h).padStart(2,'0')+':00</b> &nbsp; SUN ELEV <b>'+s.el+'°</b> AZ <b>'+s.az+'°</b><br>WALKWAY IN SHADE <b>'+(p==null?'night':p+'%')+'</b>'+(gsOn&&gsr?'<br>GAUSSIANS <b>'+gsr.n.toLocaleString()+'</b>':'');
+  drawChart(h); if(!gsCapture)pushShade();
 }
 function drawChart(h){
   const pts=shade.walk_shade_pct, hs=shade.hours, W=320,Hh=130,L=8,Rr=312,Tp=10,B=104, X=v=>L+(v-hs[0])/(hs[hs.length-1]-hs[0])*(Rr-L), Y=v=>B-(v/100)*(B-Tp);
@@ -300,10 +313,10 @@ function plannedTrees(list){
 async function chooseFix(id){
   document.querySelectorAll('#fixes .fix').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.id===id)));
   setLayer('heat',true); setLayer('traffic',false);
-  if(id==='today'){curSc=null;SH=SH0;WK=WK0;plannedTrees([]);$('#fixres').innerHTML='Today, as mapped.';setHour(+$('#hour').value);return}
+  if(id==='today'){curSc=null;SH=SH0;WK=WK0;plannedTrees([]);if(gsr&&!gsCapture){if(gsOn)buildGaussians([],true);else gsData=null}$('#fixres').innerHTML='Today, as mapped.';setHour(+$('#hour').value);return}
   const sc=T.scenarios.find(x=>x.id===id);
   if(!SCA[id])SCA[id]={SH:new Uint8Array(await gunz('data/'+SCbase+sc.files.shade)),WK:new Uint8Array(await gunz('data/'+SCbase+sc.files.walk))};
-  curSc=sc;SH=SCA[id].SH;WK=SCA[id].WK;plannedTrees(sc.trees_added);
+  curSc=sc;SH=SCA[id].SH;WK=SCA[id].WK;plannedTrees(sc.trees_added);if(gsr&&!gsCapture){if(gsOn)buildGaussians(sc.trees_added,true);else gsData=null}
   const up=(a,b)=>b>a?' class="up"':'';
   $('#fixres').innerHTML='<div class="res"><b style="color:var(--ink)">'+sc.name+'</b><br><span style="color:var(--dim)">'+sc.why+'</span><table>'+
     '<tr><td>Day-mean walkway shade</td><td'+up(sc.baseline_day_mean_shade_pct,sc.day_mean_shade_pct)+'>'+sc.baseline_day_mean_shade_pct+'% to '+sc.day_mean_shade_pct+'%</td></tr>'+
@@ -317,8 +330,12 @@ async function chooseFix(id){
 /* ---------- shared bits for the animated layers ---------- */
 const U={uScale:{value:800}};
 let fly=null, capT=null, pins=null;
-function flyTo(x,z,r,ph){orbit=false;$('#spin').textContent='Resume orbit';fly={t:0,f:{tx:cam.tx,tz:cam.tz,r:cam.r,ph:cam.ph},to:{tx:x,tz:z,r:r,ph:ph==null?cam.ph:ph}}}
-function stepFly(dt){if(!fly)return;fly.t=Math.min(1,fly.t+dt/1.6);const t=fly.t,e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;for(const k in fly.to)cam[k]=fly.f[k]+(fly.to[k]-fly.f[k])*e;cam.th+=dt*.12;if(t>=1)fly=null}
+function flyTo(x,z,r,ph,o){o=o||{};orbit=false;$('#spin').textContent='Resume orbit';
+  const d=Math.hypot(x-cam.tx,z-cam.tz),dur=o.dur||clamp(1.6+d/220+Math.abs(Math.log(r/cam.r))*.45,1.6,3.8);
+  fly={t:0,t0:performance.now(),dur:dur,f:{tx:cam.tx,tz:cam.tz,ty:cam.ty,r:cam.r,ph:cam.ph,th:cam.th},to:{tx:x,tz:z,ty:o.ty==null?4:o.ty,r:r,ph:ph==null?cam.ph:ph,th:cam.th+(o.turn==null?.45:o.turn)},arc:Math.min(.8,d/Math.max(80,cam.r+r)*1.2)}}
+function stepFly(dt){if(!fly)return;fly.t=Math.min(1,(performance.now()-fly.t0)/1000/fly.dur);   // real time, so slow frames do not slow the flight
+  const t=fly.t,e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2,lift=Math.sin(Math.PI*e);
+  for(const k in fly.to)cam[k]=fly.f[k]+(fly.to[k]-fly.f[k])*e;cam.r*=1+fly.arc*lift;cam.ph=Math.max(.1,cam.ph-fly.arc*.35*lift);if(t>=1)fly=null}
 function caption(title,text,ms){const el=$('#cap');el.innerHTML='<b>'+esc(title)+'</b>'+esc(text);el.style.display='block';clearTimeout(capT);if(ms!==0)capT=setTimeout(()=>{el.style.display='none'},ms||9000)}
 function poly(pts){const cum=[0];for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));return {pts:pts,cum:cum,len:cum[cum.length-1]}}
 function at(L,d){ // point and unit direction at distance d along a polyline
@@ -448,50 +465,69 @@ function showPoints(list){
   caption("The doctor's places",list.slice(0,4).map((p,i)=>(i+1)+'. '+p.label).join('   '),12000);
 }
 
-/* ---------- gaussian splat view: the twin redrawn as soft lit gaussians (stylized, not a photo-trained capture) ---------- */
-const SPLAT_VS='attribute vec3 acol;attribute vec3 anrm;attribute float asz;attribute float ar;uniform float uScale;uniform float uReveal;uniform float uDay;uniform vec3 uSun;varying vec3 vC;varying float vA;'+
-  'void main(){float p=clamp((uReveal-ar)/.12,0.,1.);vec3 q=position;q.y+=(1.-p)*(18.+ar*30.);'+
-  'float lit=uDay*max(dot(anrm,uSun),0.);vC=acol*(.42+.18*anrm.y+.75*lit);vA=p;'+
-  'vec4 mv=modelViewMatrix*vec4(q,1.);gl_PointSize=clamp(asz*p*uScale/-mv.z,0.,64.);gl_Position=projectionMatrix*mv;}';
-const SPLAT_FS='varying vec3 vC;varying float vA;void main(){vec2 d=gl_PointCoord-.5;float r=dot(d,d)*4.;float a=exp(-r*2.6)*vA;if(a<.12)discard;gl_FragColor=vec4(vC,a);}';
-let splat=null, splatOn=false, revealT=0, splatCount=0;
-function disposeSplats(){if(splat){scene.remove(splat);splat.geometry.dispose();splat.material.dispose();splat=null}}
-function rnd(seed){let s=seed>>>0||1;return ()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return (s>>>0)/4294967296}}
-function inPoly(x,z,f){let c=false;for(let i=0,j=f.length-1;i<f.length;j=i++){const a=f[i],b=f[j];if((a[1]>z)!==(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
-function buildSplats(){
-  disposeSplats(); const rand=rnd(7), RM=R*1.05, P=[],C=[],N=[],S=[],A=[], col=new THREE.Color();
-  let area=4*R*R*.5; T.buildings.forEach(b=>{const f=b.footprint;let per=0,ar=0;for(let i=0;i<f.length;i++){const a=f[i],c=f[(i+1)%f.length];per+=Math.hypot(c[0]-a[0],c[1]-a[1]);ar+=a[0]*c[1]-c[0]*a[1]}area+=per*b.height_m+Math.abs(ar)/2});
-  const sp=Math.max(1.1,Math.sqrt(area/260000));  // spacing that keeps a scene to a few hundred thousand splats
-  const push=(x,y,z,nx,ny,nz,hex,jit,size)=>{col.setHex(hex);const j=1+(rand()-.5)*jit;P.push(x,y,z);N.push(nx,ny,nz);C.push(Math.min(1,col.r*j),Math.min(1,col.g*j),Math.min(1,col.b*j));S.push(size||sp*1.9);A.push(Math.hypot(x,z)/RM*.85+rand()*.1)};
-  T.buildings.forEach(b=>{
-    const f=b.footprint,h=b.height_m,known=b.height_source!=='default',wall=known?0x8fb3e8:0xc9a98a,roof=known?0xd2e2ff:0xe0cdb6,win=known?0x4a6a9a:0x8a6f55;
-    let cx=0,cz=0;f.forEach(p=>{cx+=p[0]/f.length;cz+=p[1]/f.length});
-    for(let i=0;i<f.length;i++){const a=f[i],c=f[(i+1)%f.length],ex=c[0]-a[0],ez=c[1]-a[1],L=Math.hypot(ex,ez);if(L<.3)continue;
-      let nx=ez/L,nz=-ex/L;if(nx*((a[0]+c[0])/2-cx)+nz*((a[1]+c[1])/2-cz)<0){nx=-nx;nz=-nz}
-      const nu=Math.max(1,Math.round(L/sp)),nv=Math.max(1,Math.round(h/sp));
-      for(let u=0;u<nu;u++)for(let v=0;v<nv;v++){const t=(u+.5+(rand()-.5)*.4)/nu,y=(v+.5+(rand()-.5)*.4)/nv*h,band=(y%3.2)>1.1&&(y%3.2)<2.4&&(u%3)!==0;
-        push(a[0]+ex*t+nx*.05,y,a[1]+ez*t+nz*.05,nx,0,nz,band?win:wall,.16)}}
-    let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;f.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1])});
-    for(let x=x0+sp/2;x<x1;x+=sp)for(let z=z0+sp/2;z<z1;z+=sp){const jx=x+(rand()-.5)*sp*.4,jz=z+(rand()-.5)*sp*.4;if(inPoly(jx,jz,f))push(jx,h+.05,jz,0,1,0,roof,.12)}
-  });
-  const RC={main:0x34383f,mid:0x3c4048,local:0x464a52,walk:0xbdb6a8};
-  T.roads.forEach(r=>{if(r.pts.length<2)return;const L=poly(r.pts),w=r.width_m,y=(r.bridge?6.5:0)+.05,nw=Math.max(1,Math.round(w/sp));
-    for(let d=sp/2;d<L.len;d+=sp){const q=at(L,d);for(let k=0;k<nw;k++){const o=((k+.5)/nw-.5)*w+(rand()-.5)*sp*.3;push(q.x-q.tz*o,y,q.z+q.tx*o,0,1,0,RC[r.cls]||0x464a52,.1)}}});
-  const gs=sp*1.7;for(let x=-RM;x<RM;x+=gs)for(let z=-RM;z<RM;z+=gs)push(x+rand()*gs,-.02,z+rand()*gs,0,1,0,rand()<.5?0x6f7d5c:0x7d8b6c,.2,gs*2);
-  T.trees.forEach(t=>{const cy=t.height_m-t.crown_r*.85,n=Math.round(clamp(4*Math.PI*t.crown_r*t.crown_r/(sp*sp)*1.4,12,300));
-    for(let i=0;i<n;i++){const u=rand()*2-1,ph=rand()*6.283,s=Math.sqrt(1-u*u),rr=Math.cbrt(.35+.65*rand()),nx=s*Math.cos(ph),nz=s*Math.sin(ph);
-      push(t.x+nx*t.crown_r*rr,cy+u*t.crown_r*.85*rr,t.z+nz*t.crown_r*rr,nx,u,nz,t.source==='osm'?0x2e8b57:0x5fbf5a,.35)}
-    for(let y=.5;y<cy;y+=sp*.8)push(t.x,y,t.z,0,1,0,0x6b5a46,.1,sp*1.2)});
-  const g=new THREE.BufferGeometry();
-  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('acol',new THREE.Float32BufferAttribute(C,3));g.setAttribute('anrm',new THREE.Float32BufferAttribute(N,3));
-  g.setAttribute('asz',new THREE.Float32BufferAttribute(S,1));g.setAttribute('ar',new THREE.Float32BufferAttribute(A,1));
-  splat=new THREE.Points(g,new THREE.ShaderMaterial({uniforms:{uScale:U.uScale,uReveal:{value:0},uSun:{value:sunDir},uDay:{value:1}},vertexShader:SPLAT_VS,fragmentShader:SPLAT_FS,transparent:true,depthWrite:true}));
-  splat.frustumCulled=false; scene.add(splat); revealT=0; splatCount=P.length/3;
+/* ---------- gaussian view: real 3DGS renderer (gs.js); three.js draws only the overlays on top ---------- */
+let gsr=null, gsOn=false, gsData=null, gsCapture=null, gsFlip=false, capBuf=null, capName='';
+try{gsr=new GS.Renderer($('#gs'))}catch(e){gsr=null;console.warn('gaussian view off:',e.message)}
+function pushShade(){if(!gsr||!shade||!SH)return;const k=shade.hours.indexOf(+$('#hour').value);if(k<0)return;const n=shade.shape[1],per=n*n;gsr.setShade(SH.subarray(k*per,(k+1)*per),WK,n,shade.origin[0],shade.origin[1],n*shade.cell_m)}
+function buildGaussians(planned,keep){
+  if(!gsr||!T||gsCapture)return;
+  const t0=performance.now(); gsData=GS.fromTwin(T,{planned:planned||[]}); gsr.setData(gsData,!!keep);
+  if(keep&&planned&&planned.length)gsr.grow();
+  pushShade();
+  $('#gsNote').textContent=gsData.n.toLocaleString()+' gaussians made from the open-data twin in '+Math.round(performance.now()-t0)+' ms.';
 }
-$('#splatBtn').onclick=()=>{splatOn=!splatOn;$('#splatBtn').setAttribute('aria-pressed',String(splatOn));
-  if(splatOn){if(!splat)buildSplats();revealT=0;scene.background.setHex(0x0b1522);scene.fog.color.setHex(0x0b1522);
-    caption('Gaussian splat view','The same twin drawn as '+splatCount.toLocaleString()+' soft gaussian points, lit by the real sun for this hour. A stylized view of the geometry, not a photo-trained 3D Gaussian Splatting capture.',9000)}
-  else{scene.background.setHex(0xa9c6e0);scene.fog.color.setHex(0xa9c6e0)}};
+function setGs(on,quiet){
+  if(on&&!gsr){caption('Gaussian view','This browser has no WebGL2, so the solid view stays on.');on=false}
+  gsOn=on; $('#splatBtn').setAttribute('aria-pressed',String(on)); $('#splatBtn').textContent=on?'Solid view':'Gaussian view';
+  $('#gs').style.display=on?'block':'none'; $('#poi').style.display=on&&!gsCapture?'flex':'none';
+  if(on){if(!gsData&&!gsCapture)buildGaussians(curSc?curSc.trees_added:null);else gsr.replay();scene.background=null;scene.fog.density=0;
+    if(!quiet&&gsr.n)caption('Gaussian view',(gsCapture?'Your capture':'The twin')+' as '+gsr.n.toLocaleString()+' real 3D gaussians, sorted and blended like a trained 3DGS scene and lit by the real sun for this hour.'+(gsCapture?'':' They are made from open map data, not trained from photos.'),9000)}
+  else{scene.background=new THREE.Color(0xa9c6e0);scene.fog.density=.0008}
+  if(shade)setHour(+$('#hour').value);
+}
+$('#splatBtn').onclick=()=>setGs(!gsOn);
+// pre-lit colours for the downloaded .splat, so it looks right in other viewers
+function litColor(i){
+  const d=gsData,m=d.meta[i],type=(m>>>16)&15,c=[d.col[i*4],d.col[i*4+1],d.col[i*4+2]];if(!type)return c;
+  const ex=(m&255)/255*2-1,ez=((m>>>8)&255)/255*2-1;let nx=ex,ny=1-Math.abs(ex)-Math.abs(ez),nz=ez;if(ny<0){nx=(1-Math.abs(ez))*(ex>=0?1:-1);nz=(1-Math.abs(ex))*(ez>=0?1:-1)}const l=Math.hypot(nx,ny,nz)||1;
+  let vis=1;if(type===1&&shade){const n=shade.shape[1],k=Math.max(0,shade.hours.indexOf(+$('#hour').value)),i0=Math.floor((d.pos[i*3]-shade.origin[0])/shade.cell_m),j0=Math.floor((d.pos[i*3+2]-shade.origin[1])/shade.cell_m);
+    if(i0>=0&&j0>=0&&i0<n&&j0<n){const v=SH[k*n*n+j0*n+i0];vis=v===255||v===1?1:(v===90?.22:0);if(WK[j0*n+i0]===1){c[0]=186;c[1]=179;c[2]=166}}}
+  const diff=Math.max(0,(nx*sunDir.x+ny*sunDir.y+nz*sunDir.z)/l)*vis*(sunUp?1:.15),amb=type===1?.46:.4+.16*ny/l;
+  return [Math.min(255,c[0]*(.6*amb*1.3+diff*.95)),Math.min(255,c[1]*(.67*amb*1.3+diff*.94*.95)),Math.min(255,c[2]*(.8*amb*1.3+diff*.83*.95))].map(Math.round)}
+$('#gsSave').onclick=()=>{const d=gsCapture||gsData;if(!d)return;const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([GS.toSplat(d,gsCapture?null:litColor)],{type:'application/octet-stream'}));a.download=(gsCapture?capName.replace(/\.\w+$/,''):T.meta.name)+'.splat';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};
+// your own trained capture (.ply from LichtFeld, gsplat, Inria 3DGS; or .splat) in the same renderer
+async function openCapture(f){if(!gsr)return;$('#msg').style.display='grid';$('#msg').textContent='Reading '+f.name+'...';
+  try{capBuf=await f.arrayBuffer();capName=f.name;showCapture()}catch(err){$('#msg').textContent='Could not open '+f.name+': '+err.message}}
+function showCapture(){
+  const d=/\.splat$/i.test(capName)?GS.parseSplat(capBuf):GS.parsePly(capBuf);GS.normalizeCapture(d,gsFlip);gsCapture=d;gsr.setData(d);gsr.clearShade();
+  setGs(true,true);setLayer('traffic',false);$('#msg').style.display='none';
+  $('#gsNote').textContent=capName+': '+d.n.toLocaleString()+' gaussians. Your own capture, shown on its own (not placed on this map).';$('#gsFlip').hidden=false;$('#gsBack').hidden=false;
+  flyTo(0,0,d.radius*2.2,.95,{turn:.3});caption('Your capture',d.n.toLocaleString()+' gaussians from '+capName+', drawn by the same renderer. Use Flip if it is upside down.',8000)}
+$('#gsOpen').onclick=()=>$('#gsFile').click();
+$('#gsFile').onchange=e=>{const f=e.target.files[0];if(f)openCapture(f);e.target.value=''};
+stage.addEventListener('dragover',e=>e.preventDefault());
+stage.addEventListener('drop',e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f&&/\.(ply|splat)$/i.test(f.name))openCapture(f)});
+$('#gsFlip').onclick=()=>{gsFlip=!gsFlip;if(capBuf)showCapture()};
+$('#gsBack').onclick=()=>{gsCapture=null;capBuf=null;$('#gsFlip').hidden=true;$('#gsBack').hidden=true;$('#poi').style.display=gsOn?'flex':'none';buildGaussians(curSc?curSc.trees_added:null);flyTo(0,0,Math.max(R*2.4,300),.85)};
+
+/* ---------- places to fly to (Luma-style camera glides) ---------- */
+function sunHot(top){
+  const n=shade.shape[1],per=n*n,cell=shade.cell_m,idx=shade.sun.map((s,k)=>s.el>15?k:-1).filter(k=>k>=0),bs=Math.max(1,Math.round(16/cell)),out=[];
+  for(let bj=0;bj+bs<=n;bj+=bs)for(let bi=0;bi+bs<=n;bi+=bs){let cnt=0,sum=0,sx=0,sz=0;
+    for(let j=bj;j<bj+bs;j++)for(let i=bi;i<bi+bs;i++){if(WK[j*n+i]!==1)continue;cnt++;sx+=i;sz+=j;for(const k of idx)if(SH[k*per+j*n+i]===255)sum++}
+    if(cnt>=6)out.push({s:sum/cnt*Math.sqrt(cnt),x:shade.origin[0]+(sx/cnt+.5)*cell,z:shade.origin[1]+(sz/cnt+.5)*cell})}
+  out.sort((a,b)=>b.s-a.s);const pick=[];for(const o of out){if(pick.every(p=>Math.hypot(p.x-o.x,p.z-o.z)>24))pick.push(o);if(pick.length>=top)break}return pick}
+function buildPoi(){
+  const hs=sunHot(1)[0], L=[['Overview',()=>flyTo(0,0,Math.max(R*2.4,300),.85,{turn:.6})],['Top',()=>flyTo(0,0,R*2.3,.12,{turn:0})]];
+  if(hs){L.push(['Sunniest walk',()=>flyTo(hs.x,hs.z,90,1.0)]);L.push(['Street level',()=>flyTo(hs.x,hs.z,24,1.45,{ty:1.7})])}
+  if(TR)TR.areas.slice(0,3).forEach(a=>L.push(['Hot spot '+a.id,()=>pickArea(a.id)]));
+  $('#poi').innerHTML=L.map((p,i)=>'<button class="pchip" data-i="'+i+'">'+p[0]+'</button>').join('');
+  $('#poi').onclick=e=>{const b=e.target.closest('.pchip');if(!b)return;stopTour();document.querySelectorAll('#poi .pchip').forEach(x=>x.classList.toggle('on',x===b));L[+b.dataset.i][1]()};
+}
+stage.addEventListener('dblclick',e=>{const r=stage.getBoundingClientRect(),rc=new THREE.Raycaster(),p=new THREE.Vector3();
+  rc.setFromCamera({x:(e.clientX-r.left)/r.width*2-1,y:-(e.clientY-r.top)/r.height*2+1},camera);
+  if(rc.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),p))flyTo(p.x,p.z,Math.max(40,cam.r*.55),Math.min(1.25,cam.ph+.12),{turn:.25})});
 
 /* ---------- play the day, guided tour ---------- */
 let playT=null, tourT=[], touring=false;
@@ -502,14 +538,15 @@ function stopTour(){tourT.forEach(clearTimeout);tourT=[];if(touring){touring=fal
 $('#tour').onclick=()=>{if(touring){stopTour();$('#cap').style.display='none';return}
   touring=true;$('#tour').setAttribute('aria-pressed','true');$('#tour').textContent='Stop tour';
   const a=TR&&TR.areas[0], st=T.stats;
-  const steps=[
-    [0,()=>{if(splatOn)$('#splatBtn').click();flyTo(0,0,Math.max(R*2.4,300),.85);orbit=true;caption('1 · The twin',st.buildings+' buildings and '+st.road_ways+' road ways from OpenStreetMap and '+st.trees+' trees, on real coordinates.',0)}],
-    [6500,()=>{setLayer('heat',true);setLayer('traffic',false);$('#hour').value=12;setHour(12);caption('2 · Shade at noon','Orange is walkway in full sun, green is tree shade, blue is building shade. Computed from the real sun position.',0)}],
-    [13000,()=>{if(a){pickArea(a.id);caption('3 · Traffic hot spot','Area '+a.id+' scores '+a.score+' of 100. The dots crawl where the simulated load passes capacity.',0)}}],
-    [20000,()=>{const b=document.querySelector('#tsol .sol');if(b)b.click()}],
-    [28000,()=>{flyTo(0,0,Math.max(R*2.2,300),.9);orbit=true;if(!splatOn)$('#splatBtn').click()}],
-    [37000,()=>{if(splatOn)$('#splatBtn').click();caption('5 · Ask the doctor','The model can only answer by calling these same measuring tools, and every number it writes is checked.',0);brief()}],
-    [45000,()=>{stopTour()}]];
+  const hs=sunHot(1)[0], steps=[
+    [0,()=>{if(!gsOn)setGs(true,true);else if(gsr)gsr.replay();setLayer('traffic',false);setLayer('heat',false);flyTo(0,0,Math.max(R*2.4,300),.85,{turn:.8});
+      caption('1 · The twin',st.buildings+' buildings, '+st.road_ways+' road ways and '+st.trees+' trees from open data, drawn as '+(gsr?gsr.n.toLocaleString():'')+' gaussians.',0)}],
+    [7000,()=>{setLayer('heat',true);$('#hour').value=12;setHour(12);flyTo(0,0,R*1.6,.6,{turn:.5});caption('2 · Shade at noon','Shadows come from the real sun position. Orange walkway is in full sun, green is tree shade, blue is building shade.',0)}],
+    [14000,()=>{if(a){pickArea(a.id);caption('3 · Traffic hot spot','Area '+a.id+' scores '+a.score+' of 100. The dots crawl where the simulated load passes capacity.',0)}}],
+    [21000,()=>{const b=document.querySelector('#tsol .sol');if(b)b.click()}],
+    [29000,()=>{setLayer('traffic',false);setLayer('heat',false);if(hs){flyTo(hs.x,hs.z,24,1.45,{ty:1.7,turn:1.2});caption('4 · Street level','Down at eye height on the sunniest walkway.',0)}}],
+    [37000,()=>{flyTo(0,0,Math.max(R*2.4,300),.85,{turn:.7});caption('5 · Ask the doctor','Claude can only answer by calling these same measuring tools, and every number it writes is checked.',0);brief()}],
+    [46000,()=>{stopTour()}]];
   steps.forEach(s=>tourT.push(setTimeout(s[1],s[0])));
 };
 stage.addEventListener('pointerdown',()=>{fly=null;stopTour()});
@@ -526,7 +563,6 @@ function animate(dt,t){
     const ls=Math.max(8,cam.r*.03);o.lab.scale.set(ls,ls,1)});
   if(solG&&solG.userData.anim)solG.userData.anim(dt,t);
   if(pins)pins.children.forEach(g=>{g.children[0].position.y=8+Math.sin(t*3+g.userData.ph)*1.5});
-  if(splat&&splatOn){revealT+=dt;splat.material.uniforms.uReveal.value=Math.min(1.25,revealT/3.2);splat.material.uniforms.uDay.value=sunUp?1:.15}
 }
 /* ---------- layers + boot ---------- */
 const LAYERS=[['traffic','Traffic load and flow (simulated)','#ff4d3d'],['buildings','Buildings','#9fc4ff'],['roads','Roads and footpaths','#3a3f47'],['trees','Trees (OSM + canopy map)','#7bd36a'],['heat','Sun and shade overlay','#ff8a2b'],['walkOnly','Overlay on walkways only','#b9b4aa']];
@@ -534,8 +570,11 @@ $('#layers').innerHTML=LAYERS.map(l=>'<div class="layer"><i style="background:'+
 function setLayer(k,on){layers[k]=on;const b=document.querySelector('.sw[data-k="'+k+'"]');if(b)b.setAttribute('aria-checked',String(on))}
 $('#layers').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;const k=b.dataset.k;setLayer(k,!layers[k]);
   if(k==='traffic'&&layers.traffic)setLayer('heat',false);if(k==='heat'&&layers.heat)setLayer('traffic',false);if(k==='walkOnly'&&shade)setHour(+$('#hour').value)};
-function applyLayers(){if(!group)return;const solid=!splatOn;group.getObjectByName('buildings').visible=layers.buildings&&solid;group.getObjectByName('roads').visible=layers.roads&&solid;group.getObjectByName('trees').visible=layers.trees&&solid;heat.visible=layers.heat&&solid;
-  const pl=group.getObjectByName('planned');if(pl)pl.visible=solid;if(trafficG)trafficG.visible=layers.traffic;if(splat)splat.visible=splatOn;$('#legend').classList.toggle('tr',layers.traffic&&!!TR);$('#legend').style.display=splatOn&&!layers.traffic?'none':''}
+function applyLayers(){if(!group)return;const solid=!gsOn;
+  ['buildings','roads','trees'].forEach(k=>{group.getObjectByName(k).visible=layers[k]&&solid});heat.visible=layers.heat&&solid;
+  ['ground','marks','planned'].forEach(k=>{const o=group.getObjectByName(k);if(o)o.visible=solid});
+  if(trafficG)trafficG.visible=layers.traffic&&!gsCapture;if(pins)pins.visible=!gsCapture;
+  $('#legend').classList.toggle('tr',layers.traffic&&!!TR);$('#legend').style.display=gsCapture||(gsOn&&!layers.traffic&&!layers.heat)?'none':''}
 let SCbase='', SH=null, WK=null, SH0=null, WK0=null, curSc=null, SCA={};
 async function gunz(url){const r=await fetch(url);if(!r.ok)throw new Error('missing '+url);const b=await r.arrayBuffer();if(!url.endsWith('.gz'))return b;return await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()}
 async function load(path){
@@ -543,7 +582,8 @@ async function load(path){
   const base=path.slice(0,path.lastIndexOf('/')+1);
   T=await (await fetch('data/'+path)).json(); shade=T.shade;
   SH=new Uint8Array(await gunz('data/'+base+shade.file)); WK=new Uint8Array(await gunz('data/'+base+shade.walk_file)); SH0=SH; WK0=WK; curSc=null; SCA={}; SCbase=base;
-  disposeSplats(); build(); stats(); buildFixes(); trafficPanel(); if(splatOn)buildSplats(); const sl=$('#hour'); sl.min=shade.hours[0]; sl.max=shade.hours[shade.hours.length-1]; sl.value=15; setHour(15); applyLayers(); $('#msg').style.display='none';
+  gsData=null; gsCapture=null; capBuf=null; $('#gsFlip').hidden=true; $('#gsBack').hidden=true;
+  build(); stats(); buildFixes(); trafficPanel(); const sl=$('#hour'); sl.min=shade.hours[0]; sl.max=shade.hours[shade.hours.length-1]; sl.value=15; if(gsOn)buildGaussians(); setHour(15); buildPoi(); applyLayers(); $('#msg').style.display='none';
 }
 $('#hour').addEventListener('input',e=>setHour(+e.target.value));
 /* ---------- ask the doctor ---------- */
@@ -579,23 +619,27 @@ $('#ask').onclick=ask; $('#q').addEventListener('keydown',e=>{if(e.key==='Enter'
     const idx=await (await fetch('data/index.json')).json();
     $('#site').innerHTML=idx.sites.map(s=>'<option value="'+s.twin+'">'+s.name+'</option>').join('');
     $('#site').onchange=e=>load(e.target.value).catch(err=>{$('#msg').style.display='grid';$('#msg').textContent='Could not load: '+err.message});
-    // deep links: viewer.html?site=dupont&fix=trees&hour=12&view=top&area=1&splat=1&tour=1&brief=1&ask=Where%20should%20we%20plant%20first%3F
+    // deep links: viewer.html?site=dupont&fix=trees&hour=12&view=top&area=1&splat=0&overlay=1&tour=1&brief=1&ask=Where%20should%20we%20plant%20first%3F
     const q=new URLSearchParams(location.search), want=q.get('site');
     const opt=want&&[...$('#site').options].find(o=>o.value.startsWith(want+'/'));
     if(opt)$('#site').value=opt.value;
+    if(q.get('splat')!=='0'&&gsr){setGs(true,true);if(q.get('overlay')!=='1')setLayer('heat',false)}
     await load($('#site').value);
+    if(gsOn)caption('Gaussian view',gsr.n.toLocaleString()+' real 3D gaussians made from open map data, sorted and blended like a trained 3DGS scene. Double-click to fly anywhere.',8000);
     if(q.get('hour')){const h=+q.get('hour');$('#hour').value=h;setHour(h)}
     if(q.get('fix'))await chooseFix(q.get('fix'));
     if(q.get('view')==='top')$('#top').click();
+    window.__ss={gsr:()=>gsr,flyTo:flyTo,setGs:setGs,pickArea:pickArea,cam:cam};   // for scripted tests and screenshots
     if(q.get('area')&&TR)pickArea(+q.get('area'));
-    if(q.get('splat')==='1')$('#splatBtn').click();
     if(q.get('tour')==='1')$('#tour').click();
     if(q.get('brief')==='1')brief();
     if(q.get('ask')){$('#q').value=q.get('ask');ask()}
   }catch(e){$('#msg').style.display='grid';$('#msg').textContent='Could not load the twin. Run scripts/serve.py and open http://localhost:8765/viewer.html. '+e.message}
 })();
 let last=performance.now();
-(function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(orbit)cam.th+=dt*.06;stepFly(dt);applyCam();applyLayers();animate(dt,now/1000);renderer.render(scene,camera);requestAnimationFrame(frame)})(last);
+(function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(orbit)cam.th+=dt*.06;stepFly(dt);applyCam();applyLayers();animate(dt,now/1000);camera.updateMatrixWorld();
+  if(gsOn&&gsr)gsr.render(camera.matrixWorldInverse.elements,camera.projectionMatrix.elements,{sun:[sunDir.x,sunDir.y,sunDir.z],day:sunUp?1:.15,overlay:layers.heat&&!gsCapture});
+  renderer.render(scene,camera);requestAnimationFrame(frame)})(last);
 })();
 </script>
 </body>

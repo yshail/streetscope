@@ -129,7 +129,10 @@ def map_points(trace: list[dict]) -> list[dict]:
 def ask(site: T.Site, question: str, model_id: str | None = None, region: str | None = None, brief: bool = False) -> dict:
     """Run the model and check every number in its answer against what the tools returned."""
     trace: list[dict] = []
-    if os.environ.get("LLM_BACKEND") == "strands":
+    which = CA.backend()
+    if which == "cli":
+        out = CA.run_cli(site, CA.BRIEF_PROMPT if brief else question, trace)
+    elif which == "strands":
         agent = build_agent(site, trace, model_id, region)
         q = CA.BRIEF_PROMPT if brief else question
         answer = str(agent(q))

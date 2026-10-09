@@ -61,13 +61,14 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--dim);fon
       <h1>Heat is 3D. Maps are flat.</h1>
       <p>Pick any junction. Streetscope builds a 3D twin from open data, shows where people walk in the sun, screens where traffic jams, and tests fixes for both. Its AI doctor, Claude Sonnet 5.5, only quotes numbers its tools produced.</p>
       <div class="cta">
-        <a class="btn primary" href="viewer.html?site=aiims&fix=trees&view=top">See the AIIMS junction fix</a>
+        <a class="btn primary" href="viewer.html?site=dupont">Open the gaussian twin</a>
+        <a class="btn" href="viewer.html?site=aiims&fix=trees&view=top&overlay=1">See the AIIMS junction fix</a>
         <a class="btn" href="viewer.html?site=dupont&area=1">Traffic hot spots</a>
         <a class="btn" href="viewer.html?site=aiims&tour=1">Guided tour</a>
         <a class="btn" href="viewer.html?site=aiims&view=top&ask=Where%20should%20we%20plant%20first%3F">Ask the doctor</a>
       </div>
     </div>
-    <a href="viewer.html?site=aiims&fix=trees&view=top"><img class="shot" src="img/02-aiims-trees.jpg" alt="AIIMS junction with planted street trees in yellow along the walkways" width="1500" height="950"></a>
+    <a href="viewer.html?site=aiims&fix=trees&view=top&overlay=1"><img class="shot" src="img/02-aiims-trees.jpg" alt="AIIMS junction drawn as gaussian splats, with planted street trees in lime green along the sunny walkways" width="1500" height="950"></a>
   </section>
 
   <section class="stats" id="stats" aria-live="polite">
@@ -82,7 +83,7 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--dim);fon
     <div class="step"><i>1 · Build</i><h3>Open data in</h3><p>OpenStreetMap roads and buildings, the Meta and WRI canopy map, and USGS airborne LiDAR from AWS Open Data. Anywhere on Earth works; LiDAR sharpens it in the US.</p></div>
     <div class="step"><i>2 · Measure</i><h3>Shade, hour by hour</h3><p>Real sun position and a height grid give the share of each walkway in sun, tree shade or building shade, for every hour of the day.</p></div>
     <div class="step"><i>3 · Fix</i><h3>Test it before you build it</h3><p>Plant trees or widen footpaths and watch the shade change. Find the junctions that jam in a simulated peak hour, then try a bus lane, signal timing, an overbridge or a diversion. Every assumption is on screen.</p></div>
-    <div class="step"><i>4 · Ask</i><h3>A doctor that cannot make things up</h3><p>Claude Sonnet 5.5 (on Amazon Bedrock when deployed) may only call measuring tools. A checker flags any number in its answer that no tool returned.</p></div>
+    <div class="step"><i>4 · Ask</i><h3>A doctor that cannot make things up</h3><p>Claude Sonnet 5.5 (through Claude Code locally, Amazon Bedrock when deployed) may only call measuring tools. A checker flags any number in its answer that no tool returned.</p></div>
   </section>
 
   <h2>HOW HONEST IS IT</h2>
@@ -99,7 +100,7 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--dim);fon
 
   <h2>TRY IT</h2>
   <section class="cards">
-    <a class="card" href="viewer.html"><b>Real twin</b><span>Five real sites. Sun slider, shade fixes, traffic hot spots with tested fixes, a gaussian splat view, a guided tour and the doctor.</span></a>
+    <a class="card" href="viewer.html?site=dupont"><b>Real twin</b><span>Five real sites drawn as real 3D gaussian splats, with a Luma-style reveal and camera flights. Sun slider, shade fixes, traffic hot spots, a guided tour and the doctor. Opens your own .ply captures too.</span></a>
     <a class="card" href="earth.html?site=aiims"><b>On real 3D</b><span>The whole analysis on photoreal Google 3D Tiles: shade overlay, trees, traffic hot spots and fixes, cameras, glow and a guided tour. Works on a flat map without a key.</span></a>
     <a class="card" href="demo/index.html"><b>Simulator demo</b><span>A generated junction: cars, signals, bus lanes and before/after. Labelled as generated.</span></a>
   </section>
