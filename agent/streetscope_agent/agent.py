@@ -1,4 +1,5 @@
-"""The Strands agent. It can call the tools in tools.py and nothing else."""
+"""The doctor. Claude Sonnet 5.5 by default (claude_agent.py); a Strands + Bedrock path is kept as LLM_BACKEND=strands.
+Either way it can call the tools in tools.py and nothing else, and an offline template answers when no model is reachable."""
 
 from __future__ import annotations
 
@@ -6,6 +7,7 @@ import os
 import re
 from typing import Any
 
+from . import claude_agent as CA
 from . import tools as T
 from .verify import unverified_numbers
 
@@ -76,7 +78,24 @@ def make_tool_functions(site: T.Site, trace: list[dict]):
         """
         return record("what_if_trees", {"n": n}, T.what_if_trees(site, n))
 
-    return [site_summary, measure_road, count_trees, shade_at, shade_profile, list_scenarios, sun_hotspots, what_if_trees]
+    def traffic_areas(top: int = 5) -> dict:
+        """Junctions with the worst simulated peak-hour traffic, ranked by score. Screening model with assumed demand.
+
+        Args:
+            top: How many areas, 1 to 10.
+        """
+        return record("traffic_areas", {"top": top}, T.traffic_areas(site, top))
+
+    def propose_solutions(area_id: int | None = None) -> dict:
+        """Candidate traffic fixes for one area, each re-simulated, with load before and after and an assumed cost.
+
+        Args:
+            area_id: Area id from traffic_areas. Leave out for the worst area.
+        """
+        return record("propose_solutions", {"area_id": area_id}, T.propose_solutions(site, area_id))
+
+    return [site_summary, measure_road, count_trees, shade_at, shade_profile, list_scenarios, sun_hotspots, what_if_trees,
+            traffic_areas, propose_solutions]
 
 
 def build_agent(site: T.Site, trace: list[dict], model_id: str | None = None, region: str | None = None):
@@ -97,20 +116,31 @@ def map_points(trace: list[dict]) -> list[dict]:
         if t["tool"] == "sun_hotspots":
             for i, sp in enumerate(res.get("spots", []), 1):
                 pts.append({"lat": sp["lat"], "lon": sp["lon"], "label": f"Sunny spot {i}: lit {sp['sun_hours']} of {sp['of_hours']} daytime hours"})
+        elif t["tool"] == "traffic_areas" and res.get("available"):
+            for a in res["areas"]:
+                pts.append({"lat": a["lat"], "lon": a["lon"], "kind": "traffic",
+                            "label": f"Traffic area {a['id']}: score {a['score']}, {a['severity']} (simulated)"})
         elif t["tool"] == "what_if_trees" and not pts:
             for i, sp in enumerate(res.get("spots", [])[:6], 1):
                 pts.append({"lat": sp["lat"], "lon": sp["lon"], "label": f"Plant here {i}"})
     return pts
 
 
-def ask(site: T.Site, question: str, model_id: str | None = None, region: str | None = None) -> dict:
-    """Run the agent and check every number in its answer against what the tools returned."""
+def ask(site: T.Site, question: str, model_id: str | None = None, region: str | None = None, brief: bool = False) -> dict:
+    """Run the model and check every number in its answer against what the tools returned."""
     trace: list[dict] = []
-    agent = build_agent(site, trace, model_id, region)
-    answer = str(agent(question))
-    bad = unverified_numbers(answer, [t["result"] for t in trace], question)
-    return {"answer": answer, "tools_called": [{"tool": t["tool"], "args": t["args"]} for t in trace],
-            "unverified_numbers": bad, "verified": not bad, "map_points": map_points(trace)}
+    if os.environ.get("LLM_BACKEND") == "strands":
+        agent = build_agent(site, trace, model_id, region)
+        q = CA.BRIEF_PROMPT if brief else question
+        answer = str(agent(q))
+        bad = unverified_numbers(answer, [t["result"] for t in trace], q)
+        out = {"answer": answer, "unverified_numbers": bad, "verified": not bad,
+               "llm": {"provider": "Amazon Bedrock (Strands)", "model": model_id or DEFAULT_MODEL}}
+    else:
+        out = CA.run(site, CA.BRIEF_PROMPT if brief else question, trace)
+    out["tools_called"] = [{"tool": t["tool"], "args": t["args"]} for t in trace]
+    out["map_points"] = map_points(trace)
+    return out
 
 
 # ---------- offline mode: no language model, same tools, plain templates ----------
@@ -133,7 +163,9 @@ def offline_answer(site: T.Site, question: str) -> dict:
     fns = {f.__name__: f for f in make_tool_functions(site, trace)}
     parts = []
     hour = _hour_in(q)
-    if re.search(r"plant|tree|where|first|hotspot", q) and not re.search(r"how many", q):
+    if re.search(r"traffic|congest|jam|queue|junction|signal|bus lane|overbridge|vehicle|\bcars?\b", q):
+        parts.append(_traffic_text(fns))
+    elif re.search(r"plant|tree|where|first|hotspot", q) and not re.search(r"how many", q):
         h = fns["sun_hotspots"](3)["spots"]
         w = fns["what_if_trees"](12)
         rows = ", ".join(f"{r['hour']}:00 {r['before_pct']}% to {r['after_pct']}%" for r in w["walkway_shade"])
@@ -155,7 +187,51 @@ def offline_answer(site: T.Site, question: str) -> dict:
         s = fns["site_summary"]()
         parts.append(f"{s['name']}: {s['road_ways']} road ways, {s['buildings']} buildings, {s['trees_mapped']} trees mapped. "
                      + " ".join(s["known_gaps"]))
-    answer = "[offline mode, no language model] " + " ".join(parts)
+    return _offline_result(" ".join(parts), trace, question)
+
+
+def _traffic_text(fns: dict) -> str:
+    a = fns["traffic_areas"](3)
+    if not a["available"]:
+        return a["note"]
+    top = a["areas"][0]
+    roads = " and ".join(top["roads"][:2]) or "an unnamed junction"
+    txt = (f"Simulated screening, assumed demand, no traffic counts. The worst area is near {roads}: score {top['score']}, "
+           f"peak load {top['load_ratio']} times the assumed capacity.")
+    p = fns["propose_solutions"](top["id"])
+    if p["available"] and p["solutions"]:
+        s = p["solutions"][0]
+        txt += (f" Best tested fix: {s['title'].lower()}. Area load goes from {s['area_load_before']} to {s['area_load_after']} "
+                f"({s['area_load_change_pct']}%), network delay changes {s['network_delay_change_pct']}%. "
+                f"{s['assumption']}. Cost is an assumed {s['cost_lakh']} lakh rupees.")
+    return txt
+
+
+def offline_brief(site: T.Site) -> dict:
+    """The engineer's brief without a language model: same tools, fixed template."""
+    trace: list[dict] = []
+    fns = {f.__name__: f for f in make_tool_functions(site, trace)}
+    s = fns["site_summary"]()
+    prof = fns["shade_profile"]()
+    sc = {x["id"]: x for x in fns["list_scenarios"]()["scenarios"]}
+    lines = ["Where it hurts"]
+    if prof.get("least_shaded_hour") is not None:
+        lines.append(f"- Walkway shade drops to {prof['least_shaded_pct']}% at {prof['least_shaded_hour']}:00.")
+    lines.append("- " + _traffic_text(fns))
+    lines.append("What we would try")
+    if "trees" in sc:
+        t = sc["trees"]
+        lines.append(f"- Plant {t['trees_added']} street trees: day-mean walkway shade {t['day_mean_shade_pct_before']}% to "
+                     f"{t['day_mean_shade_pct_after']}%, assumed cost {t['cost_inr']} rupees.")
+    lines.append("- Study the traffic fix above with real counts before any design.")
+    lines.append("How sure we are")
+    lines += ["- " + g for g in s["known_gaps"]]
+    lines.append("- Traffic numbers are simulated with assumed demand and capacity. Costs are assumed unit rates, not quotes.")
+    return _offline_result("\n".join(lines), trace, "")
+
+
+def _offline_result(text: str, trace: list[dict], question: str) -> dict:
+    answer = "[offline mode, no language model] " + text
     bad = unverified_numbers(answer, [t["result"] for t in trace], question)
     return {"answer": answer, "tools_called": [{"tool": t["tool"], "args": t["args"]} for t in trace],
             "unverified_numbers": bad, "verified": not bad, "map_points": map_points(trace)}

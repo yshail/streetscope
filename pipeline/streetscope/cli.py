@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import canopy, lidar, osm, scenarios, shade, twin
+from . import canopy, lidar, osm, scenarios, shade, traffic, twin
 
 
 def build_site(args: argparse.Namespace) -> Path:
@@ -18,13 +18,16 @@ def build_site(args: argparse.Namespace) -> Path:
     out.mkdir(parents=True, exist_ok=True)
     if args.osm:
         elements = osm.load(args.osm)
+        signals_queried = osm.queried_signals(args.osm)
         print(f"read {len(elements)} OpenStreetMap elements from {args.osm}")
     else:
         print("asking Overpass (can take a minute)...")
         elements = osm.fetch(args.lat, args.lon, int(args.radius + 40))
-        (out / "osm.raw.json").write_text(json.dumps({"elements": elements}), encoding="utf-8")
+        signals_queried = True
+        (out / "osm.raw.json").write_text(json.dumps({"elements": elements, "queried": ["signals"]}), encoding="utf-8")
         print(f"downloaded {len(elements)} elements")
     t = twin.build(elements, args.lat, args.lon, args.radius, args.name)
+    t["meta"]["signals_queried"] = signals_queried
     got_lidar = False
     if args.lidar != "off":
         lcache = out / "lidar.npz"
@@ -80,12 +83,18 @@ def build_site(args: argparse.Namespace) -> Path:
         (out / item["files"]["shade"]).write_bytes(gz(st.tobytes()))
         (out / item["files"]["walk"]).write_bytes(gz(wk.tobytes()))
     t["scenarios"] = sc
+    print("screening traffic...")
+    t["traffic"] = traffic.analyse(t)
     (out / "twin.json").write_text(json.dumps(t, separators=(",", ":")), encoding="utf-8")
     s = t["stats"]
     print(f"{args.name}: {s['road_ways']} road ways, {s['buildings']} buildings, {s['trees']} trees, {s['bus_stops']} bus stops")
     print("walkway shade % by hour:", dict(zip(meta["hours"], meta["walk_shade_pct"])))
     for g in s["gaps"]:
         print("  gap:", g)
+    tr = t["traffic"]
+    if tr:
+        print(f"  traffic: {tr['summary']['links_over_capacity']} links over capacity, top area score "
+              f"{tr['areas'][0]['score'] if tr['areas'] else '-'}, {len(tr['solutions'])} candidate fixes (simulated)")
     for item in sc:
         print(f"  fix {item['id']}: day-mean walkway shade {item['baseline_day_mean_shade_pct']}% -> {item['day_mean_shade_pct']}%, "
               f"{item['extra_walk_m2']} m2 more footpath, cost {item['cost_inr']} (assumed)")

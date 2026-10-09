@@ -36,7 +36,8 @@ def flatten(obj: Any) -> Iterable[float]:
 
 
 def _close(a: float, b: float) -> bool:
-    return abs(a - b) <= max(0.051, 0.01 * abs(b)) or round(b) == a or round(b, 1) == a
+    a, b = abs(a), abs(b)   # "a 10.7% drop" quotes a change the tool gave as -10.7
+    return abs(a - b) <= max(0.051, 0.01 * b) or round(b) == a or round(b, 1) == a
 
 
 def unverified_numbers(answer: str, tool_outputs: list[Any], question: str = "") -> list[float]:

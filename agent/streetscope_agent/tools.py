@@ -189,7 +189,74 @@ def cost_estimate(n_trees: int) -> dict:
             "basis": "ASSUMED unit rate of 6,000 rupees per tree including three years of care. Not a quote."}
 
 
+def _traffic(site: Site) -> dict | None:
+    return site.twin.get("traffic")
+
+
+def traffic_areas(site: Site, top: int = 5) -> dict:
+    """The junctions where the simulated peak-hour traffic is worst, ranked by a 0-100 score."""
+    tr = _traffic(site)
+    if not tr:
+        return {"available": False, "note": "The road network here is too thin for the traffic screening model."}
+    top = max(1, min(int(top), 10))
+    areas = [{k: a[k] for k in ("id", "lat", "lon", "score", "severity", "load_ratio", "roads", "crossings", "bus_stops", "signals", "reasons")}
+             for a in tr["areas"][:top]]
+    return {"available": True, "areas": areas, "network": tr["summary"], "method": tr["method"]["kind"],
+            "limits": tr["method"]["limits"],
+            "meaning": "load_ratio is simulated peak-hour flow divided by ASSUMED capacity; above 1 means queues. Score ranks areas, 100 is worst."}
+
+
+def propose_solutions(site: Site, area_id: int | None = None) -> dict:
+    """Candidate fixes for one traffic area (default: the worst), each re-simulated to show the change in load."""
+    tr = _traffic(site)
+    if not tr or not tr["areas"]:
+        return {"available": False, "note": "No traffic areas were found for this site."}
+    aid = int(area_id) if area_id is not None else tr["areas"][0]["id"]
+    area = next((a for a in tr["areas"] if a["id"] == aid), None)
+    if area is None:
+        return {"available": False, "note": f"There is no traffic area {aid}.", "area_ids": [a["id"] for a in tr["areas"]]}
+    sols = [{k: s[k] for k in ("kind", "title", "what", "assumption", "area_load_before", "area_load_after", "area_load_change_pct",
+                               "network_delay_change_pct", "cost_lakh", "recommended")}
+            for s in tr["solutions"] if s["area_id"] == aid]
+    sols.sort(key=lambda s: (not s["recommended"], s["area_load_change_pct"]))
+    basis = next((s["cost_basis"] for s in tr["solutions"]), "")
+    return {"available": True, "area": {"id": aid, "roads": area["roads"], "score": area["score"], "load_ratio": area["load_ratio"]},
+            "solutions": sols, "cost_basis": basis, "method": tr["method"]["kind"],
+            "meaning": "change_pct is the simulated change; negative is better. Costs are in lakh rupees (1 lakh = 100,000) and ASSUMED."}
+
+
 TOOLS = {
     "site_summary": site_summary, "measure_road": measure_road, "count_trees": count_trees, "shade_at": shade_at,
-    "shade_profile": shade_profile, "list_scenarios": list_scenarios, "sun_hotspots": sun_hotspots, "what_if_trees": what_if_trees, "cost_estimate": cost_estimate,
+    "shade_profile": shade_profile, "list_scenarios": list_scenarios, "sun_hotspots": sun_hotspots, "what_if_trees": what_if_trees,
+    "cost_estimate": cost_estimate, "traffic_areas": traffic_areas, "propose_solutions": propose_solutions,
 }
+
+
+def _spec(name: str, description: str, props: dict | None = None, required: list[str] | None = None) -> dict:
+    return {"name": name, "description": description,
+            "input_schema": {"type": "object", "properties": props or {}, "required": required or []}}
+
+
+# What Claude sees: one schema per tool, in plain words.
+TOOL_SPECS = [
+    _spec("site_summary", "Counts of roads, buildings, trees, bus stops and crossings for this site, plus the known data gaps. Call this first."),
+    _spec("measure_road", "Width, lanes and length of a named road, and whether the width is a measurement or a class default.",
+          {"name": {"type": "string", "description": "Part of the road name, for example 'Aurobindo'."}}, ["name"]),
+    _spec("count_trees", "How many trees are mapped, where they came from, and their crown area. Warns when the count is a lower bound."),
+    _spec("shade_at", "Share of the walkway in shade at one hour, with the sun's height and direction.",
+          {"hour": {"type": "integer", "description": "Local hour from 6 to 18."}}, ["hour"]),
+    _spec("shade_profile", "Walkway shade for every daytime hour, with the most and least shaded hour."),
+    _spec("list_scenarios", "The precomputed shade fixes (street trees, wider footpaths, both) with shade before and after and an assumed cost."),
+    _spec("sun_hotspots", "The sunniest stretches of walkway, with coordinates and how many daytime hours each is lit.",
+          {"top": {"type": "integer", "description": "How many spots, 1 to 10.", "minimum": 1, "maximum": 10}}),
+    _spec("what_if_trees", "Plant n trees at the sunniest spots and recompute walkway shade before and after, with an assumed cost.",
+          {"n": {"type": "integer", "description": "Number of trees, 1 to 40.", "minimum": 1, "maximum": 40}}),
+    _spec("cost_estimate", "Assumed cost of planting a number of trees.",
+          {"n_trees": {"type": "integer", "minimum": 0}}, ["n_trees"]),
+    _spec("traffic_areas", "The junctions with the worst simulated peak-hour traffic, ranked by score, with the reasons for each. "
+          "Results come from a screening model with assumed demand, not traffic counts.",
+          {"top": {"type": "integer", "description": "How many areas, 1 to 10.", "minimum": 1, "maximum": 10}}),
+    _spec("propose_solutions", "Candidate fixes for one traffic area (bus lane, signal retiming, foot overbridge, route diversion, "
+          "extra lane), each re-simulated to give the change in area load and network delay, with an assumed cost.",
+          {"area_id": {"type": "integer", "description": "Area id from traffic_areas. Leave out for the worst area."}}),
+]

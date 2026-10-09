@@ -1,12 +1,12 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Streetscope - static site on S3 and CloudFront, plus the checked-answer doctor on Lambda with Amazon Bedrock.
+Description: Streetscope - static site on S3 and CloudFront, plus the checked-answer doctor (Claude Sonnet 5.5 on Amazon Bedrock) on Lambda.
 
 Parameters:
-  BedrockModelId:
+  ClaudeModelId:
     Type: String
-    Default: us.amazon.nova-2-lite-v1:0
-    Description: Copy the exact model or inference profile id from the Bedrock console.
+    Default: anthropic.claude-sonnet-5-5
+    Description: Claude model id on Amazon Bedrock. Check the exact id and that the model is enabled in your region's Bedrock console.
   AskToken:
     Type: String
     NoEcho: true
@@ -76,7 +76,8 @@ Resources:
       Timeout: 60
       Environment:
         Variables:
-          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          LLM_BACKEND: bedrock
+          CLAUDE_MODEL: !Ref ClaudeModelId
           ASK_TOKEN: !Ref AskToken
           TWIN_DIR: /var/task/twins
           USE_LLM: "1"
@@ -92,7 +93,7 @@ Resources:
         Cors:
           AllowOrigins:
             - !Sub "https://${Distribution.DomainName}"
-          AllowMethods: [POST]
+          AllowMethods: [GET, POST]
           AllowHeaders: [content-type, x-ask-token]
 
 Outputs:

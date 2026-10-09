@@ -24,6 +24,7 @@ def build_query(lat: float, lon: float, radius: int, with_buildings: bool = True
         f'node["natural"="tree"]{around};',
         f'node["highway"="bus_stop"]{around};',
         f'node["highway"="crossing"]{around};',
+        f'node["highway"="traffic_signals"]{around};',
         f'node["amenity"="charging_station"](around:{radius * 2},{lat},{lon});',
     ]
     if with_buildings:
@@ -50,6 +51,12 @@ def fetch(lat: float, lon: float, radius: int = 300, with_buildings: bool = True
                 last = exc
         time.sleep(pause * (attempt + 1))
     raise RuntimeError(f"Overpass did not answer after {tries} rounds: {last}")
+
+
+def queried_signals(path: str | Path) -> bool:
+    """True when the saved download was made with the traffic-signal query."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    return isinstance(data, dict) and "signals" in data.get("queried", [])
 
 
 def load(path: str | Path) -> list[dict]:

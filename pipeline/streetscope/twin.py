@@ -62,7 +62,7 @@ def _inside(x: float, z: float, radius: float) -> bool:
 
 def build(elements: list[dict], lat: float, lon: float, radius: float, name: str = "site") -> dict:
     frame = Frame(lat, lon)
-    roads, buildings, trees, stops, crossings, ev = [], [], [], [], [], []
+    roads, buildings, trees, stops, crossings, ev, signals = [], [], [], [], [], [], []
 
     for e in elements:
         tags = e.get("tags", {})
@@ -96,6 +96,8 @@ def build(elements: list[dict], lat: float, lon: float, radius: float, name: str
                                if parse_number(tags.get("diameter_crown")) else DEFAULT_CROWN_R, "source": "osm"})
             elif tags.get("highway") == "bus_stop" and _inside(x, z, radius * 1.2):
                 stops.append({"x": x, "z": z, "name": tags.get("name")})
+            elif tags.get("highway") == "traffic_signals" and _inside(x, z, radius * 1.1):
+                signals.append({"x": x, "z": z})
             elif tags.get("highway") == "crossing" and _inside(x, z, radius):
                 crossings.append({"x": x, "z": z, "kind": tags.get("crossing")})
             elif tags.get("amenity") == "charging_station":
@@ -108,12 +110,12 @@ def build(elements: list[dict], lat: float, lon: float, radius: float, name: str
             "attribution": "(c) OpenStreetMap contributors, ODbL",
         },
         "roads": roads, "buildings": buildings, "trees": trees,
-        "stops": stops, "crossings": crossings, "ev": ev,
-        "stats": stats(roads, buildings, trees, stops, crossings, ev),
+        "stops": stops, "crossings": crossings, "ev": ev, "signals": signals,
+        "stats": stats(roads, buildings, trees, stops, crossings, ev, len(signals)),
     }
 
 
-def stats(roads, buildings, trees, stops, crossings, ev) -> dict:
+def stats(roads, buildings, trees, stops, crossings, ev, n_signals: int = 0) -> dict:
     length = Counter()
     for r in roads:
         length[r["cls"]] += polyline_length([tuple(p) for p in r["pts"]])
@@ -129,6 +131,7 @@ def stats(roads, buildings, trees, stops, crossings, ev) -> dict:
         "building_height_sources": dict(hsrc),
         "building_footprint_m2": round(area),
         "trees": len(trees), "bus_stops": len(stops), "crossings": len(crossings), "ev_chargers": len(ev),
+        "traffic_signals": n_signals,
         "gaps": gaps(len(drive), wsrc, len(buildings), hsrc, len(trees)),
     }
 

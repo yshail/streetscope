@@ -58,6 +58,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .legend{display:flex;gap:12px;flex-wrap:wrap;font:400 11px var(--mono);margin-top:6px}.legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px}
 #ans{font-size:13.5px;margin-top:10px;color:var(--ink)}#trace{font:400 11px var(--mono);color:var(--dim);margin-top:6px}
 .rules{font-size:12px;color:var(--dim)}
+.sev{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}
+.fix .delta{display:block;font:400 11.5px/1.5 var(--mono);color:var(--ice);margin-top:4px}
+.t-s{color:#c79bff}
+.badge{font:500 10px var(--mono);letter-spacing:.04em;padding:2px 7px;border:1px solid var(--line2);color:var(--dim);text-transform:none}
+.badge.on{color:#e3ccff;border-color:#9b6bff;box-shadow:0 0 12px rgba(155,107,255,.35)}
+#ans{white-space:pre-wrap}
 @media (max-width:1100px){#right{display:none}#bar{right:12px}#chips{max-width:calc(100% - 360px)}#caption{width:min(560px,calc(100% - 380px))}}
 @media (max-width:760px){#left{width:auto;right:12px;bottom:auto;max-height:44vh}#bar,#chips,#caption,#status{left:12px}.cesium-viewer-bottom{left:0!important}}
 </style>
@@ -91,12 +97,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <button class="btn" data-cam="overview">Overview</button><button class="btn" data-cam="top">Top-down</button>
       <button class="btn" data-cam="walk">Street walk</button><button class="btn" data-cam="orbit" id="orbitBtn" aria-pressed="true">Orbit</button>
     </div>
-    <div class="row" style="margin-top:8px"><button class="btn primary" id="play" style="flex:1">Play tour</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn primary" id="play" style="flex:1">Play tour</button><a class="btn" id="splatLink" href="viewer.html?splat=1" style="text-decoration:none;color:inherit">Splat view</a></div>
   </section>
   <section><h3>Layers</h3><div id="layers"></div></section>
   <section>
     <h3>Try a fix <span class="sub">real shade maths</span></h3>
     <div id="fixes"></div><div id="fixres" class="note res"></div>
+  </section>
+  <section>
+    <h3>Traffic hot spots <span class="sub">simulated screen</span></h3>
+    <p class="note" id="tsum" style="margin:0 0 8px"></p>
+    <div id="tlist"></div><div id="tsol" style="margin-top:8px"></div>
   </section>
   <section class="rules">
     Google tiles are <b>display only</b>. Google's terms ban extracting geodata or running object detection on them. Every number here comes from OpenStreetMap, LiDAR, the canopy map or our shade maths, never from the tiles. Keep the Google attribution visible.
@@ -111,9 +122,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <p class="note" id="shadeNote"></p>
   </section>
   <section>
-    <h3>Ask the doctor <span class="sub">answers only from tools</span></h3>
+    <h3>Ask the doctor <span class="badge" id="llm">checking model...</span></h3>
     <div class="row"><input type="text" id="q" placeholder="Where should we plant first?"><button class="btn" id="ask">Ask</button></div>
     <div id="qs" class="row" style="flex-wrap:wrap;margin-top:8px"></div>
+    <button class="btn" id="brief" style="margin-top:8px;width:100%">Write the engineer's brief</button>
     <div id="ans"></div><div id="trace"></div>
   </section>
   <section><h3>Data <span class="sub" id="lvl"></span></h3><div id="stats" class="note" style="margin:0"></div></section>
@@ -141,8 +153,8 @@ const CFG=window.STREETSCOPE||{api:'http://localhost:8766/ask',token:''};
 let viewer, tileset=null, tilesOn=false;
 let T=null, base='', shade=null, SH0=null, WK0=null, SH=null, WK=null, curSc=null, SCA={}, hour=15, F=null;
 let orbitOn=false, heading=0, orbitRange=520, orbitPitch=-38, center=null, h0=0, growth=1, overlayAlpha=1, runId=0, playing=false, walking=0, playingWalk=false;
-const layersOn={shade:true,walk:true,roads:true,trees:true,planned:true,bld:false,labels:true,traffic:true};
-const E={overlay:null,roads:[],trees:[],planned:[],bld:[],labels:[],traffic:[],pins:[]};
+const layersOn={shade:true,walk:true,roads:true,trees:true,planned:true,bld:false,labels:true,traffic:false,glow:false};
+const E={overlay:null,roads:[],trees:[],planned:[],bld:[],labels:[],traffic:[],pins:[],sol:[]};
 let simPaths=[];
 
 /* ---------- frame: metres around the site (x east, z south) ---------- */
@@ -156,6 +168,7 @@ function makeViewer(){
     animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,fullscreenButton:false,infoBox:false,selectionIndicator:false});
   viewer.scene.globe.depthTestAgainstTerrain=true;
   viewer.scene.skyAtmosphere.show=true;
+  const bl=viewer.scene.postProcessStages.bloom; bl.enabled=false; Object.assign(bl.uniforms,{glowOnly:false,contrast:128,brightness:-.5,delta:1,sigma:2.4,stepSize:1});
   viewer.clock.onTick.addEventListener(()=>{
     if(orbitOn&&center&&!playingWalk){heading+=.0014;viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(center),new Cesium.HeadingPitchRange(heading,orbitPitch*rad,orbitRange))}
   });
@@ -173,7 +186,7 @@ async function loadTiles(key){
     if(key.indexOf('eyJ')===0){Cesium.Ion.defaultAccessToken=key;tileset=await Cesium.createGooglePhotorealistic3DTileset({onlyUsingWithGoogleGeocoder:true})}
     else tileset=await Cesium.createGooglePhotorealistic3DTileset({key:key,onlyUsingWithGoogleGeocoder:true});
     viewer.scene.primitives.add(tileset); viewer.scene.globe.show=false; tilesOn=true;
-    $('#tileState').textContent='photoreal on'; $('#diag').style.display='none';
+    $('#tileState').textContent='photoreal on'; $('#diag').style.display='none'; layersOn.glow=true; syncLayers(); applyLayers();   // bloom only suits the photoreal scene, it bleaches the flat map
     status('Photoreal 3D tiles ready.');
     if(T){await sampleGround();rebuildAll()}
     return true;
@@ -208,13 +221,14 @@ async function loadSite(path){
   await sampleGround();
   center=Cesium.Cartesian3.fromDegrees(F.lon0,F.lat0,h0);
   const sl=$('#hour'); sl.min=shade.hours[0]; sl.max=shade.hours[shade.hours.length-1]; hour=15; sl.value=15;
-  rebuildAll(); buildFixes(); stats(); drawChart(); readout();
+  curArea=null; rebuildAll(); buildFixes(); trafficPanel(); stats(); drawChart(); readout();
+  $('#splatLink').href='viewer.html?site='+path.split('/')[0]+'&splat=1';
   $('#siteNote').textContent='Centre '+F.lat0.toFixed(4)+', '+F.lon0.toFixed(4)+' · radius '+T.meta.radius_m+' m';
 }
 
 /* ---------- overlays on the 3D ---------- */
 const COL={main:'#ff9d3c',mid:'#ffd24a',local:'#35c6ff',walk:'#b06aff'}, WID={main:6,mid:5,local:3.5,walk:3};
-function clearAll(){for(const k in E){if(k==='overlay'){if(E.overlay)viewer.entities.remove(E.overlay);E.overlay=null}else{E[k].forEach(e=>viewer.entities.remove(e));E[k]=[]}}}
+function clearAll(){curSol=null;for(const k in E){if(k==='overlay'){if(E.overlay)viewer.entities.remove(E.overlay);E.overlay=null}else{E[k].forEach(e=>viewer.entities.remove(e));E[k]=[]}}}
 function rebuildAll(){clearAll();buildOverlay();buildRoads();buildTrees();buildBuildings();buildLabels();buildTraffic();if(curSc)buildPlanned(curSc.trees_added);applyLayers()}
 const nearestHour=h=>{let b=0;shade.hours.forEach((v,i)=>{if(Math.abs(v-h)<Math.abs(shade.hours[b]-h))b=i});return b};
 function overlayCanvas(){
@@ -286,20 +300,104 @@ function buildLabels(){
   T.ev.slice(0,4).forEach(s=>E.labels.push(label(s.x,s.z,'EV charger','#0e6a7a')));
 }
 function roadAt(p,d){for(let i=1;i<p.c.length;i++)if(d<=p.c[i]){const f=(d-p.c[i-1])/Math.max(1e-6,p.c[i]-p.c[i-1]);return{x:p.pts[i-1][0]+(p.pts[i][0]-p.pts[i-1][0])*f,z:p.pts[i-1][1]+(p.pts[i][1]-p.pts[i-1][1])*f,b:Math.atan2(p.pts[i][0]-p.pts[i-1][0],-(p.pts[i][1]-p.pts[i-1][1]))}}return null}
+/* ---------- traffic screen: simulated with assumed demand, so it ranks places and compares fixes ---------- */
+const LOADCSS=r=>r>=1?'#ff4d3d':(r>=.85?'#ff9a2e':(r>=.6?'#ffd84a':'#3ddc97'));
+const SEVCSS={high:'#ff4d3d',medium:'#ffb83d',low:'#3ddc97'};
+const lakh=n=>n>=100?(n/100).toFixed(1)+' crore':(+n).toFixed(1)+' lakh';
+const esc=t=>String(t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let TRF=null, curArea=null, curSol=null, LKE={};
+const C=css=>Cesium.Color.fromCssColorString(css);
+function polyPath(pts){let L=0;const c=[0];for(let i=1;i<pts.length;i++){L+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);c.push(L)}return{pts:pts,c:c,L:L}}
+function flatOf(pts){const f=[];pts.forEach(p=>{const q=ll(p[0],p[1]);f.push(q[0],q[1])});return f}
+function offsetPts(pts,o){const n=pts.length,out=[];for(let i=0;i<n;i++){const a=pts[Math.max(0,i-1)],b=pts[i],c=pts[Math.min(n-1,i+1)];let dx1=b[0]-a[0],dz1=b[1]-a[1],dx2=c[0]-b[0],dz2=c[1]-b[1];const l1=Math.hypot(dx1,dz1)||1,l2=Math.hypot(dx2,dz2)||1;dx1/=l1;dz1/=l1;dx2/=l2;dz2/=l2;const nx=-(dz1+dz2),nz=dx1+dx2,l=Math.hypot(nx,nz)||1;out.push([b[0]+nx/l*o,b[1]+nz/l*o])}return out}
+function buildWalkPath(){
+  simPaths=T.roads.filter(r=>(r.cls==='main'||r.cls==='mid')&&r.pts.length>1&&!r.bridge).map(r=>polyPath(r.pts)).filter(p=>p.L>70).sort((a,b)=>b.L-a.L).slice(0,4);
+}
+function pulse(i,sel){const f=((performance.now()/1000)*.55+i*.23)%1;return {r:(sel?14:10)+f*(sel?40:28),a:.55*(1-f)}}
 function buildTraffic(){
-  simPaths=T.roads.filter(r=>(r.cls==='main'||r.cls==='mid')&&r.pts.length>1&&!r.bridge).map(r=>{let L=0;const c=[0];for(let i=1;i<r.pts.length;i++){L+=Math.hypot(r.pts[i][0]-r.pts[i-1][0],r.pts[i][1]-r.pts[i-1][1]);c.push(L)}return{pts:r.pts,c:c,L:L}}).filter(p=>p.L>70).sort((a,b)=>b.L-a.L).slice(0,4);
-  simPaths.forEach((p,pi)=>{for(let k=0;k<8;k++){const off=k*p.L/8,sp=7+((k*37+pi*11)%6),dir=(k%2)?1:-1;
-    E.traffic.push(viewer.entities.add({position:new Cesium.CallbackProperty(()=>{let d=(off+Date.now()/1000*sp*dir)%p.L;if(d<0)d+=p.L;const q=roadAt(p,d)||{x:0,z:0},g=ll(q.x,q.z);return Cesium.Cartesian3.fromDegrees(g[0],g[1],0)},false),
-      point:{pixelSize:7,color:Cesium.Color.fromCssColorString('#ff9d3c'),outlineColor:Cesium.Color.BLACK,outlineWidth:1,heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Number.POSITIVE_INFINITY}}))}});
+  buildWalkPath(); TRF=T.traffic||null; LKE={}; if(!TRF)return;
+  // road links coloured by simulated peak-hour load, with a soft glow
+  TRF.links.slice(0,320).forEach(l=>{if(l.pts.length<2)return;const p=polyPath(l.pts);LKE[l.id]={l:l,p:p,mul:1};
+    E.traffic.push(viewer.entities.add({polyline:{positions:Cesium.Cartesian3.fromDegreesArray(flatOf(l.pts)),width:5+2.5*Math.min(l.lanes,3),clampToGround:true,
+      material:new Cesium.PolylineGlowMaterialProperty({glowPower:.22,taperPower:1,color:C(LOADCSS(l.r)).withAlpha(.92)})}}))});
+  // moving dots: more on busy links, slower once a link passes capacity (the BPR curve the model routes with)
+  let n=0;
+  for(const id in LKE){const k=LKE[id];if(k.p.L<20)continue;const m=clamp(Math.round(k.p.L/40*Math.min(k.l.r,1.4)),1,6);
+    for(let i=0;i<m&&n<320;i++,n++){let d=Math.random()*k.p.L,last=performance.now();const dir=i%2?1:-1,lane=dir*1.6;
+      E.traffic.push(viewer.entities.add({position:new Cesium.CallbackProperty(()=>{const now=performance.now(),dt=Math.min(.1,(now-last)/1000);last=now;
+          const r=k.l.r*k.mul,v=29/(1+Math.pow(r,4));d+=dir*v*dt;if(d>k.p.L)d-=k.p.L;if(d<0)d+=k.p.L;
+          const q=roadAt(k.p,d)||{x:k.p.pts[0][0],z:k.p.pts[0][1],b:0},dx=Math.sin(q.b),dz=-Math.cos(q.b),g=ll(q.x-dz*lane,q.z+dx*lane);return Cesium.Cartesian3.fromDegrees(g[0],g[1],h0+1.5)},false),
+        point:{pixelSize:6,color:C(LOADCSS(k.l.r)),outlineColor:Cesium.Color.WHITE.withAlpha(.7),outlineWidth:1,disableDepthTestDistance:Number.POSITIVE_INFINITY,scaleByDistance:new Cesium.NearFarScalar(150,1.4,1500,.6)}}))}}
+  // pulsing numbered circles at the hot spots
+  TRF.areas.forEach((a,i)=>{const q=ll(a.x,a.z),col=()=>curSol&&curArea&&curArea.id===a.id?LOADCSS(curSol.area_load_after):SEVCSS[a.severity],sel=()=>!!curArea&&curArea.id===a.id;
+    E.traffic.push(viewer.entities.add({position:Cesium.Cartesian3.fromDegrees(q[0],q[1]),ellipse:{semiMajorAxis:new Cesium.CallbackProperty(()=>pulse(i,sel()).r,false),semiMinorAxis:new Cesium.CallbackProperty(()=>pulse(i,sel()).r,false),
+      material:new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(()=>C(col()).withAlpha(pulse(i,sel()).a),false)),classificationType:Cesium.ClassificationType.BOTH}}));
+    E.traffic.push(viewer.entities.add({polyline:{positions:[Cesium.Cartesian3.fromDegrees(q[0],q[1],h0),Cesium.Cartesian3.fromDegrees(q[0],q[1],h0+26)],width:2,material:C(SEVCSS[a.severity])}}));
+    E.traffic.push(viewer.entities.add({position:Cesium.Cartesian3.fromDegrees(q[0],q[1],h0+28),label:{text:' '+a.id+' ',font:'800 17px Hanken Grotesk, sans-serif',fillColor:C('#04070b'),showBackground:true,backgroundColor:C(SEVCSS[a.severity]),
+      backgroundPadding:new Cesium.Cartesian2(7,5),disableDepthTestDistance:Number.POSITIVE_INFINITY}}));
+  });
+}
+function trafficPanel(){
+  $('#tsol').innerHTML='';
+  if(!TRF){$('#tsum').textContent='The road network here is too thin for the traffic screen.';$('#tlist').innerHTML='';return}
+  const s=TRF.summary;
+  $('#tsum').innerHTML=s.links_over_capacity+' road links pass their assumed capacity in the peak hour, '+s.links_over_80pct+' are above 80%. <span class="tag t-s">simulated</span><br><span style="color:var(--faint)">'+esc(TRF.method.limits)+'</span>';
+  $('#tlist').innerHTML=TRF.areas.map(a=>'<button class="fix area" data-a="'+a.id+'" aria-pressed="false"><b><i class="sev" style="background:'+SEVCSS[a.severity]+'"></i>Area '+a.id+' · score '+a.score+'</b><small>'+(a.roads.length?esc(a.roads.slice(0,2).join(' / ')):'unnamed junction')+' · peak load '+a.load_ratio+'× capacity</small></button>').join('');
+  $('#tlist').onclick=e=>{const b=e.target.closest('.area');if(b){userTook();pickArea(+b.dataset.a)}};
+}
+const sortSols=id=>TRF.solutions.filter(s=>s.area_id===id).sort((p,q)=>(q.recommended-p.recommended)||(p.area_load_change_pct-q.area_load_change_pct));
+async function pickArea(id,noFly){
+  if(!TRF)return; const a=TRF.areas.find(x=>x.id===id); if(!a)return;
+  curArea=a; clearSol();
+  layersOn.traffic=true; layersOn.shade=false; layersOn.roads=false; syncLayers(); applyLayers();
+  document.querySelectorAll('#tlist .area').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.a===id)));
+  const sols=sortSols(id), sg=v=>(v>0?'+':'')+v;
+  $('#tsol').innerHTML='<div class="note" style="margin:0;color:var(--ink)"><b>Area '+a.id+'</b> · '+(a.roads.length?esc(a.roads.join(' / ')):'unnamed junction')+': '+esc(a.reasons.join('; '))+'.</div>'+
+    (sols.length?sols.map((s,i)=>'<button class="fix sol" data-i="'+i+'" aria-pressed="false"><b>'+esc(s.title)+(s.recommended?'<span class="tag t-m">worth studying</span>':'')+'</b><small>'+esc(s.what)+'</small><span class="delta">area load '+s.area_load_before+'× → '+s.area_load_after+'× ('+sg(s.area_load_change_pct)+'%)<br>network delay '+sg(s.network_delay_change_pct)+'% · ₹ '+lakh(s.cost_lakh)+' <span class="tag t-a">assumed</span></span></button>').join('')+
+      '<div class="note">'+esc(sols[0].cost_basis)+'. Click a fix to see it on the street.</div>':'<div class="note">No tested fix changed the simulated load here.</div>');
+  $('#tsol').onclick=e=>{const b=e.target.closest('.sol');if(!b)return;userTook();document.querySelectorAll('#tsol .sol').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));previewSol(sols[+b.dataset.i])};
+  caption('Traffic area '+a.id+' · score '+a.score+'. '+a.reasons[0]+'. Simulated with assumed demand: a ranking, not a vehicle count.');
+  if(!noFly){await flyTarget(a.x,a.z,260,35,-42,2.4);startOrbit(260,-42,a.x,a.z)}
+}
+function clearSol(){E.sol.forEach(e=>viewer.entities.remove(e));E.sol=[];curSol=null;for(const id in LKE)LKE[id].mul=1}
+function addSol(o){const e=viewer.entities.add(o);E.sol.push(e);return e}
+function quad(x,z,ux,uz,hl,hw){const vx=-uz,vz=ux;return flatOf([[x-ux*hl-vx*hw,z-uz*hl-vz*hw],[x+ux*hl-vx*hw,z+uz*hl-vz*hw],[x+ux*hl+vx*hw,z+uz*hl+vz*hw],[x-ux*hl+vx*hw,z-uz*hl+vz*hw]])}
+function previewSol(s){
+  clearSol(); curSol=s; const a=curArea, k=LKE[s.link_id], ratio=s.area_load_after/Math.max(.01,s.area_load_before);
+  a.links.forEach(id=>{if(LKE[id])LKE[id].mul=ratio}); if(k)k.mul=ratio;
+  const w=k?2+1.6*k.l.lanes:8, P=k?k.p:null, m=P?roadAt(P,P.L/2):null, tx=m?Math.sin(m.b):1, tz=m?-Math.cos(m.b):0, mx=m?m.x:a.x, mz=m?m.z:a.z;
+  if(P)addSol({polyline:{positions:Cesium.Cartesian3.fromDegreesArray(flatOf(P.pts)),width:22,clampToGround:true,material:new Cesium.PolylineGlowMaterialProperty({glowPower:.3,color:new Cesium.CallbackProperty(()=>C('#3dd6ff').withAlpha(.35+.3*Math.sin(performance.now()/250)),false)})}});
+  if(s.kind==='bus_lane'&&P){
+    addSol({polyline:{positions:Cesium.Cartesian3.fromDegreesArray(flatOf(offsetPts(P.pts,w*.5-1.6))),width:10,clampToGround:true,material:C('#d23a2e').withAlpha(.95)}});
+    [0,1,2].forEach(i=>{let d=i*P.L/3,last=performance.now();addSol({position:new Cesium.CallbackProperty(()=>{const now=performance.now();d=(d+(now-last)/1000*9)%P.L;last=now;const q=roadAt(P,d)||{x:mx,z:mz,b:0},o=w*.5-1.6,g=ll(q.x+Math.cos(q.b)*o,q.z+Math.sin(q.b)*o);return Cesium.Cartesian3.fromDegrees(g[0],g[1],h0+2)},false),
+      point:{pixelSize:14,color:C('#d23a2e'),outlineColor:Cesium.Color.WHITE,outlineWidth:2,disableDepthTestDistance:Number.POSITIVE_INFINITY}})});
+  }else if(s.kind==='signal_retiming'){
+    [[1,1],[-1,1],[1,-1],[-1,-1]].forEach((dd,i)=>{const g=ll(a.x+dd[0]*9,a.z+dd[1]*9),off=i%2?0:3;
+      addSol({position:Cesium.Cartesian3.fromDegrees(g[0],g[1],h0+3),cylinder:{length:6,topRadius:.25,bottomRadius:.25,material:C('#2a2f36')}});
+      addSol({position:Cesium.Cartesian3.fromDegrees(g[0],g[1],h0+6.8),point:{pixelSize:15,outlineColor:C('#15191e'),outlineWidth:3,disableDepthTestDistance:Number.POSITIVE_INFINITY,
+        color:new Cesium.CallbackProperty(()=>{const p=(performance.now()/1000+off)%6;return C(p<2.5?'#3ddc97':(p<3?'#ffb83d':'#ff4d3d'))},false)}})});
+  }else if(s.kind==='foot_overbridge'){
+    const nx=-tz,nz=tx,len=w+16;
+    addSol({polygon:{hierarchy:Cesium.Cartesian3.fromDegreesArray(quad(mx,mz,nx,nz,len/2,1.6)),height:h0+6.4,extrudedHeight:h0+7.3,material:C('#d6efff'),outline:true,outlineColor:C('#5aa9ff')}});
+    [-1,1].forEach(sg=>addSol({polygon:{hierarchy:Cesium.Cartesian3.fromDegreesArray(quad(mx+nx*sg*len/2,mz+nz*sg*len/2,nx,nz,1.8,1.8)),height:h0,extrudedHeight:h0+7.3,material:C('#aecbe0'),outline:true,outlineColor:C('#5aa9ff')}}));
+    [0,1,2,3].forEach(i=>addSol({position:new Cesium.CallbackProperty(()=>{const u=(((performance.now()/1000)*.12+i/4)%1-.5)*len*(i%2?1:-1),g=ll(mx+nx*u,mz+nz*u);return Cesium.Cartesian3.fromDegrees(g[0],g[1],h0+8)},false),
+      point:{pixelSize:8,color:C('#ffd24a'),disableDepthTestDistance:Number.POSITIVE_INFINITY}}));
+  }else if(s.kind==='route_diversion'&&P){
+    addSol({polyline:{positions:Cesium.Cartesian3.fromDegreesArray(flatOf(P.pts)).map(p=>{const c=Cesium.Cartographic.fromCartesian(p);return Cesium.Cartesian3.fromRadians(c.longitude,c.latitude,h0+2)}),width:18,material:new Cesium.PolylineArrowMaterialProperty(C('#3dd6ff'))}});
+  }else if(s.kind==='add_lane'&&P){
+    addSol({polyline:{positions:Cesium.Cartesian3.fromDegreesArray(flatOf(offsetPts(P.pts,w*.5+1.7))),width:11,clampToGround:true,material:C('#9aa3ad').withAlpha(.95)}});
+  }
+  caption(s.title+'. '+s.what+'. Simulated: area load '+s.area_load_before+'× to '+s.area_load_after+'×, network delay '+(s.network_delay_change_pct>0?'+':'')+s.network_delay_change_pct+'%. '+s.assumption+'.');
 }
 function applyLayers(){
   if(E.overlay)E.overlay.show=layersOn.shade;
   E.roads.forEach(e=>e.show=layersOn.roads); E.trees.forEach(e=>e.show=layersOn.trees); E.planned.forEach(e=>e.show=layersOn.planned);
-  E.bld.forEach(e=>e.show=layersOn.bld); E.labels.forEach(e=>e.show=layersOn.labels); E.traffic.forEach(e=>e.show=layersOn.traffic);
+  E.bld.forEach(e=>e.show=layersOn.bld); E.labels.forEach(e=>e.show=layersOn.labels); E.traffic.forEach(e=>e.show=layersOn.traffic); E.sol.forEach(e=>e.show=layersOn.traffic);
+  if(viewer)viewer.scene.postProcessStages.bloom.enabled=layersOn.glow;
 }
-const LAYERS=[['shade','Sun and shade overlay','#ff8a2b'],['walk','Overlay on walkways only','#b9b4aa'],['roads','Roads by class','#ff9d3c'],['trees','Trees (OSM + canopy or LiDAR)','#7bd36a'],['planned','Planned trees','#f2d04f'],['bld','Measured building heights','#58c8ff'],['labels','Labels','#c98a12'],['traffic','Simulated traffic','#ff9d3c']];
+const LAYERS=[['shade','Sun and shade overlay','#ff8a2b'],['walk','Overlay on walkways only','#b9b4aa'],['roads','Roads by class','#ff9d3c'],['trees','Trees (OSM + canopy or LiDAR)','#7bd36a'],['planned','Planned trees','#f2d04f'],['bld','Measured building heights','#58c8ff'],['labels','Labels','#c98a12'],['traffic','Traffic load and flow (simulated)','#ff4d3d'],['glow','Glow effects (best on photoreal)','#c79bff']];
 $('#layers').innerHTML=LAYERS.map(l=>'<div class="layer"><i style="background:'+l[2]+'"></i><span>'+l[1]+'</span><button class="sw" data-k="'+l[0]+'" role="switch" aria-checked="'+layersOn[l[0]]+'" aria-label="'+l[1]+'"></button></div>').join('');
-$('#layers').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;const k=b.dataset.k;layersOn[k]=!layersOn[k];b.setAttribute('aria-checked',String(layersOn[k]));if(k==='walk')refreshOverlay();applyLayers()};
+$('#layers').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;const k=b.dataset.k;layersOn[k]=!layersOn[k];if(k==='traffic'&&layersOn.traffic){layersOn.shade=false;layersOn.roads=false}if(k==='shade'&&layersOn.shade)layersOn.traffic=false;syncLayers();if(k==='walk')refreshOverlay();applyLayers()};
 function syncLayers(){document.querySelectorAll('#layers .sw').forEach(b=>b.setAttribute('aria-checked',String(layersOn[b.dataset.k])))}
 
 /* ---------- sun, chart, readouts ---------- */
@@ -388,8 +486,8 @@ function flyTarget(x,z,range,hd,pitch,duration){
   const g=ll(x,z), c=Cesium.Cartesian3.fromDegrees(g[0],g[1],h0);
   return new Promise(res=>viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(c,1),{offset:new Cesium.HeadingPitchRange(hd*rad,pitch*rad,range),duration:duration,complete:()=>res(true),cancel:()=>res(false)}));
 }
-function startOrbit(range,pitch){
-  release();center=Cesium.Cartesian3.fromDegrees(F.lon0,F.lat0,h0);orbitRange=range;orbitPitch=pitch;heading=viewer.camera.heading||0;setOrbit(true);
+function startOrbit(range,pitch,x,z){
+  const g=ll(x||0,z||0); release();center=Cesium.Cartesian3.fromDegrees(g[0],g[1],h0);orbitRange=range;orbitPitch=pitch;heading=viewer.camera.heading||0;setOrbit(true);
 }
 async function camPreset(name){
   userTook();
@@ -415,20 +513,20 @@ async function walkRoad(){
 }
 
 /* ---------- tour ---------- */
-const PH=['Fly in','Roads','Shade','Hotspots','Fix','Walk'];
+const PH=['Fly in','Roads','Shade','Hotspots','Fix','Traffic','Walk'];
 function caption(t){const c=$('#caption');c.style.opacity=0;setTimeout(()=>{c.textContent=t;c.style.opacity=t?1:0},200)}
 function setPhase(i,t){[...$('#chips').children].forEach((b,k)=>b.className='pchip'+(k===i?' on':(k<i?' done':'')));caption(t)}
 $('#chips').innerHTML=PH.map(p=>'<span class="pchip">'+p+'</span>').join('');
 async function tour(){
   const id=++runId; playing=true; $('#play').textContent='Stop tour'; clearPins(); setOrbit(false); playingWalk=false; walking++;
   const ok=async p=>{const r=await p;return r&&id===runId};
-  layersOn.shade=false;layersOn.roads=false;layersOn.labels=false;layersOn.trees=false;layersOn.traffic=false;syncLayers();applyLayers();
+  layersOn.shade=false;layersOn.roads=false;layersOn.labels=false;layersOn.trees=false;layersOn.traffic=false;syncLayers();applyLayers();clearSol();curArea=null;
   await chooseFix('today'); setHour(9);
   setPhase(0,tilesOn?'Real photoreal 3D. Everything on top is our own data and maths.':'Flat map mode. Add a key on the left to see this on photoreal 3D.');
   release(); viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(F.lon0,F.lat0,9000000)});
   if(!await ok(flyView(F.lon0,F.lat0,2600,{pitch:-90,duration:6})))return;
   setPhase(1,'Roads coloured by class, with widths from OpenStreetMap and where each width came from.');
-  layersOn.roads=true;layersOn.labels=true;layersOn.traffic=true;syncLayers();applyLayers();
+  layersOn.roads=true;layersOn.labels=true;syncLayers();applyLayers();
   if(!await ok(flyTarget(0,0,520,20,-35,3.5)))return;
   startOrbit(520,-35); if(!await ok(tween(5500,()=>{},id)))return;
   setPhase(2,'Real sun position. Orange is walkway in direct sun, green is tree shade, blue is building shade.');
@@ -449,7 +547,17 @@ async function tour(){
     await chooseFix('trees'); document.querySelectorAll('.fix').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.id==='trees')));
     startOrbit(440,-38); if(!await ok(tween(7000,()=>{},id)))return;
   }
-  setPhase(5,'Street level. Walk the main road and see the trees and shade at eye height.');
+  const ta=TRF&&TRF.areas[0];
+  if(ta){
+    setPhase(5,'');
+    await pickArea(ta.id,true); setPhase(5,'Traffic hot spot '+ta.id+', score '+ta.score+'. Dots crawl where the simulated load passes capacity. Assumed demand, not counts.');
+    if(!await ok(flyTarget(ta.x,ta.z,260,35,-42,2.6)))return; startOrbit(260,-42,ta.x,ta.z);
+    if(!await ok(tween(4500,()=>{},id)))return;
+    const best=sortSols(ta.id)[0];
+    if(best){previewSol(best);document.querySelectorAll('#tsol .sol').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===0)));if(!await ok(tween(8000,()=>{},id)))return}
+    clearSol(); layersOn.traffic=false;layersOn.shade=true;syncLayers();applyLayers();
+  }
+  setPhase(6,'Street level. Walk the main road and see the trees and shade at eye height.');
   await camPreset('walk');
   if(id===runId||true){setPhase(-1,'');playing=false;$('#play').textContent='Play tour';await flyTarget(0,0,520,0,-38,2.4);startOrbit(520,-38)}
 }
@@ -457,15 +565,30 @@ $('#play').onclick=()=>{if(playing){userTook()}else tour()};
 document.querySelectorAll('[data-cam]').forEach(b=>b.onclick=()=>camPreset(b.dataset.cam));
 
 /* ---------- doctor ---------- */
-['Where should we plant first?','How shaded is the walkway at noon?','Tell me about this place'].forEach(t=>{const b=document.createElement('button');b.className='btn';b.style.cssText='font-size:11px;text-transform:none';b.textContent=t;b.onclick=()=>{$('#q').value=t;ask()};$('#qs').appendChild(b)});
-async function ask(){
-  const q=$('#q').value.trim(); if(!q)return; $('#ans').textContent='Thinking...'; $('#trace').textContent='';
+['Where is traffic worst and what fixes it?','Where should we plant first?','How shaded is the walkway at noon?','Tell me about this place'].forEach(t=>{const b=document.createElement('button');b.className='btn';b.style.cssText='font-size:11px;text-transform:none';b.textContent=t;b.onclick=()=>{$('#q').value=t;ask()};$('#qs').appendChild(b)});
+const md=t=>esc(t).replace(/^#+\s*(.+)$/gm,'<b>$1</b>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+const modelName=m=>!m?'offline templates':(/sonnet-5-5/.test(m)?'Claude Sonnet 5.5':m);
+function ask(){const q=$('#q').value.trim(); if(q)callDoctor({question:q},'Thinking...')}
+function brief(){callDoctor({mode:'brief'},'Writing the brief: the doctor is calling the measuring tools...')}
+$('#brief').onclick=brief;
+(async function llmStatus(){
+  const el=$('#llm');
+  try{const j=await (await fetch(CFG.api.replace(/\/ask$/,'/status'))).json();
+    if(j.mode==='offline'){el.textContent='offline templates';el.title='No language model key set. Answers use fixed templates over the same tools.'}
+    else{el.textContent=modelName(j.model);el.classList.add('on');el.title=j.model+' via '+j.provider}
+  }catch(e){el.textContent='doctor offline';el.title='Start it with: python scripts/dev_api.py'}
+})();
+async function callDoctor(body,wait){
+  $('#ans').textContent=wait; $('#trace').textContent='';
   try{
-    const r=await fetch(CFG.api,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},CFG.token?{'x-ask-token':CFG.token}:{}),body:JSON.stringify({site:$('#site').value.split('/')[0],question:q})});
+    const r=await fetch(CFG.api,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},CFG.token?{'x-ask-token':CFG.token}:{}),body:JSON.stringify(Object.assign({site:$('#site').value.split('/')[0]},body))});
     const j=await r.json(); if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
-    $('#ans').textContent=j.answer;
-    $('#trace').innerHTML='tools: '+j.tools_called.map(t=>t.tool).join(', ')+'<br>'+(j.verified?'<span style="color:var(--good)">every number in the answer came from a tool</span>':'<span style="color:var(--bad)">not backed by a tool: '+j.unverified_numbers.join(', ')+'</span>');
+    $('#ans').innerHTML=md(j.answer);
+    const who=j.llm?modelName(j.llm.model)+' via '+j.llm.provider+' · '+j.llm.turns+' turns':'offline templates';
+    $('#trace').innerHTML='answered by: '+esc(who)+'<br>tools: '+j.tools_called.map(t=>t.tool).join(', ')+'<br>'+(j.verified?'<span style="color:var(--good)">every number in the answer came from a tool</span>':'<span style="color:var(--bad)">not backed by a tool: '+j.unverified_numbers.join(', ')+'</span>')+(j.fallback_reason?'<br>language model unavailable ('+esc(j.fallback_reason)+'), showing the offline answer':'');
     clearPins();
+    const tp=(j.map_points||[]).find(p=>p.kind==='traffic');
+    if(tp&&TRF){const c=xz(tp.lon,tp.lat);let best=TRF.areas[0],bd=1e9;TRF.areas.forEach(a=>{const d=Math.hypot(a.x-c[0],a.z-c[1]);if(d<bd){bd=d;best=a}});userTook();pickArea(best.id);return}
     const mp=(j.map_points||[]).slice(0,6);
     mp.forEach(p=>{const c=xz(p.lon,p.lat);pin(c[0],c[1],p.label)});
     if(mp.length){userTook();const c=xz(mp[0].lon,mp[0].lat);flyTarget(c[0],c[1],200,30,-42,2.6)}
@@ -489,8 +612,9 @@ $('#keyGo').onclick=async()=>{const k=$('#key').value.trim();if(!k)return;setKey
     status(tilesOn?'Photoreal 3D ready. Press Play tour.':'Flat map mode (no 3D tiles key yet). Press Play tour.');
     await flyTarget(0,0,520,0,-38,0.1); startOrbit(520,-38);
     if(q.get('fix'))await chooseFix(q.get('fix'));
+    if(q.get('area'))await pickArea(+q.get('area'));
     if(q.get('tour')==='1')tour();
-    window.__ss={tour:tour,viewer:()=>viewer,chooseFix:chooseFix,setHour:setHour,camPreset:camPreset,hotspots:hotspots,state:()=>({tilesOn:tilesOn,h0:h0,hour:hour,sc:curSc&&curSc.id,entities:viewer.entities.values.length})};
+    window.__ss={pickArea:pickArea,previewSol:previewSol,sortSols:sortSols,tour:tour,viewer:()=>viewer,chooseFix:chooseFix,setHour:setHour,camPreset:camPreset,hotspots:hotspots,state:()=>({tilesOn:tilesOn,h0:h0,hour:hour,sc:curSc&&curSc.id,entities:viewer.entities.values.length})};
   }catch(e){status('Could not start: '+e.message)}
 })();
 })();

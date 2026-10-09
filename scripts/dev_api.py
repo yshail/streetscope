@@ -1,6 +1,7 @@
 """Local stand-in for the Lambda. POST http://localhost:8766/ask  {"site":"aiims","question":"..."}
 
-Uses Bedrock when AWS credentials work, otherwise the offline answer. Run: python scripts/dev_api.py
+Uses Claude Sonnet 5.5 when ANTHROPIC_API_KEY is set (or LLM_BACKEND=bedrock with AWS credentials), otherwise the
+offline answer. GET http://localhost:8766/status says which. Run: python scripts/dev_api.py
 """
 import json
 import os
@@ -19,12 +20,24 @@ class H(BaseHTTPRequestHandler):
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "content-type, x-ask-token")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 
     def do_OPTIONS(self):
         self.send_response(204)
         self._cors()
         self.end_headers()
+
+    def do_GET(self):
+        if self.path != "/status":
+            self.send_response(404)
+            self.end_headers()
+            return
+        res = lambda_handler({"requestContext": {"http": {"method": "GET"}}})
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self._cors()
+        self.end_headers()
+        self.wfile.write(res["body"].encode("utf-8"))
 
     def do_POST(self):
         if self.path != "/ask":
@@ -44,6 +57,9 @@ class H(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    mode = "Bedrock (falls back to offline if credentials fail)" if os.environ.get("USE_LLM", "1") == "1" else "offline only"
+    from streetscope_agent.handler import status
+
+    st = status()
+    mode = f"{st['model']} via {st['provider']} (falls back to offline on errors)" if st["mode"] != "offline" else "offline only"
     print("Doctor API on http://localhost:8766/ask ,", mode)
     HTTPServer(("localhost", 8766), H).serve_forever()

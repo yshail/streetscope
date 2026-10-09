@@ -30,9 +30,9 @@ select{width:100%;background:#070c12;color:var(--ice);border:1px solid var(--lin
 .sw[aria-checked="true"]{background:var(--blue)}.sw[aria-checked="true"]::after{left:18px;background:#fff}
 .stage{grid-area:stage;position:relative;min-height:0;background:#04070b;touch-action:none;cursor:grab}
 #gl{position:absolute;inset:0;width:100%;height:100%;display:block}
-.hud{position:absolute;left:14px;top:14px;font:400 11px/1.6 var(--mono);color:#cfe0f0;text-shadow:0 1px 6px #000;pointer-events:none}
+.hud{position:absolute;left:14px;top:14px;font:400 11px/1.6 var(--mono);color:#cfe0f0;background:rgba(5,8,13,.72);padding:6px 9px;border:1px solid var(--line2);pointer-events:none}
 .hud b{color:#fff;font-weight:500}
-.legend{position:absolute;right:14px;bottom:14px;background:rgba(5,8,13,.85);border:1px solid var(--line2);padding:8px 10px;font:400 11px var(--mono);display:flex;flex-direction:column;gap:4px}
+.legend{position:absolute;right:14px;top:14px;background:rgba(5,8,13,.85);border:1px solid var(--line2);padding:8px 10px;font:400 11px var(--mono);display:flex;flex-direction:column;gap:4px}
 .legend i{display:inline-block;width:10px;height:10px;margin-right:7px;vertical-align:-1px}
 .kv div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13.5px}
 .kv div:first-child{border-top:0}.kv span{color:var(--dim)}.kv b{font-weight:600;font-variant-numeric:tabular-nums}
@@ -56,6 +56,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .res table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
 .res td{padding:4px 0;border-top:1px solid var(--line);color:var(--ink)}.res td:last-child{text-align:right;font-variant-numeric:tabular-nums}
 .res td.up{color:var(--good)}
+.sev{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}.sev-high{background:var(--bad)}.sev-medium{background:var(--warn)}.sev-low{background:var(--good)}
+.fix .delta{display:block;font:400 11.5px/1.5 var(--mono);color:var(--ice);margin-top:4px}
+.t-r{color:var(--good)}.t-s{color:#c79bff}
+.badge{font:500 10px var(--mono);letter-spacing:.04em;padding:2px 7px;border:1px solid var(--line2);color:var(--dim);text-transform:none}
+.badge.on{color:#e3ccff;border-color:#9b6bff;box-shadow:0 0 12px rgba(155,107,255,.35)}
+.cap{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:min(620px,calc(100% - 32px));background:rgba(5,8,13,.9);border:1px solid var(--line2);border-left:3px solid var(--ice);padding:10px 14px;font-size:13.5px;color:var(--ink);display:none}
+.cap b{font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);display:block;margin-bottom:3px}
+#ans{white-space:pre-wrap}
+.legend .tl{display:none}.legend.tr .tl{display:block}.legend.tr .sl{display:none}
+.btn[aria-pressed="true"]{background:var(--ice);color:#04070b;border-color:var(--ice)}
 .msg{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);text-align:center;padding:24px;pointer-events:none}
 @media (max-width:1000px){html,body{overflow:auto}.app{height:auto;display:flex;flex-direction:column}.stage{height:60vh;min-height:360px}.panel{overflow:visible}}
 </style>
@@ -73,6 +83,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <section><h3>Try a fix <span class="sub">real shade maths</span></h3>
       <div id="fixes" style="display:flex;flex-direction:column;gap:6px"></div>
       <div id="fixres" class="note" style="margin-top:10px"></div></section>
+    <section><h3>Traffic hot spots <span class="sub">simulated screen</span></h3>
+      <p class="note" id="tsum" style="margin:0 0 8px"></p>
+      <div id="tlist" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div id="tsol" style="display:flex;flex-direction:column;gap:6px;margin-top:10px"></div></section>
     <section><h3>How to read the colours</h3>
       <div class="note" style="margin:0">Buildings are <b style="color:#9fc4ff">blue</b> when OpenStreetMap has a real height or floor count, and <b style="color:#c9a98a">tan</b> when the height is assumed. Nothing is hidden.</div>
     </section>
@@ -82,7 +96,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   <main class="stage" id="stage">
     <canvas id="gl"></canvas>
     <div class="hud" id="hud"></div>
-    <div class="legend"><div><i style="background:#ff8a2b"></i>sun on the ground</div><div><i style="background:#3fdc90"></i>tree shade</div><div><i style="background:#2a64d8"></i>building shade</div></div>
+    <div class="legend" id="legend"><div class="sl"><i style="background:#ff8a2b"></i>sun on the ground</div><div class="sl"><i style="background:#3fdc90"></i>tree shade</div><div class="sl"><i style="background:#2a64d8"></i>building shade</div>
+      <div class="tl"><i style="background:#3ddc97"></i>traffic under 60% of capacity</div><div class="tl"><i style="background:#ffd84a"></i>60 to 85%</div><div class="tl"><i style="background:#ff9a2e"></i>85 to 100%</div><div class="tl"><i style="background:#ff4d3d"></i>over capacity (queues)</div><div class="tl" style="color:var(--dim)">simulated, assumed demand</div></div>
+    <div class="cap" id="cap"></div>
     <div class="msg" id="msg">Loading the twin...</div>
   </main>
 
@@ -93,9 +109,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <section><h3>What the map says</h3><div class="kv" id="stats"></div></section>
     <section><h3>How much is real</h3><div id="conf"></div></section>
     <section><h3>Gaps we will not hide</h3><div id="gaps"></div></section>
-    <section><h3>Ask the doctor <span class="sub">answers only from tools</span></h3>
+    <section><h3>Ask the doctor <span class="badge" id="llm">checking model...</span></h3>
       <div style="display:flex;gap:6px"><input id="q" type="text" placeholder="Where should we plant first?" style="flex:1;background:#070c12;border:1px solid var(--line2);color:var(--ice);padding:8px;font:400 13px var(--mono)"><button class="btn" id="ask">Ask</button></div>
       <div id="qs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+      <button class="btn" id="brief" style="margin-top:8px;width:100%">Write the engineer's brief</button>
       <div id="ans" class="note" style="color:var(--ink);font-size:13.5px"></div>
       <div id="trace" class="note" style="font-family:var(--mono);font-size:11px"></div>
     </section>
@@ -106,6 +123,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <label>SUN <input id="hour" type="range" min="6" max="18" step="1" value="15"><output id="hourOut"></output></label>
     <button class="btn" id="spin">Pause orbit</button>
     <button class="btn" id="top">Top view</button>
+    <button class="btn" id="play" aria-pressed="false">Play the day</button>
+    <button class="btn" id="splatBtn" aria-pressed="false">Gaussian splats</button>
+    <button class="btn" id="tour" aria-pressed="false">Guided tour</button>
   </footer>
 </div>
 <script src="config.js"></script>
@@ -116,8 +136,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 const $=(s,r=document)=>r.querySelector(s);
 const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
 const tag=t=>'<span class="tag t-'+({measured:'m',estimated:'e',computed:'c'}[t])+'">'+t+'</span>';
+let sunDir=new THREE.Vector3(0,1,0), sunUp=true;
 let T=null, shade=null, R=0, renderer, scene, camera, group=null, heat=null, heatTex=null, sunL, hemi, orbit=true;
-const cam={tx:0,ty:4,tz:0,r:520,th:.8,ph:1.0}, layers={buildings:true,roads:true,trees:true,heat:true,walkOnly:true};
+const cam={tx:0,ty:4,tz:0,r:520,th:.8,ph:1.0}, layers={buildings:true,roads:true,trees:true,heat:true,walkOnly:true,traffic:false};
 
 /* ---------- renderer ---------- */
 const stage=$('#stage'), canvas=$('#gl');
@@ -194,6 +215,7 @@ function build(){
   heatTex=new THREE.DataTexture(data,n,n,THREE.RGBAFormat); heatTex.magFilter=THREE.NearestFilter; heatTex.minFilter=THREE.NearestFilter;
   heat=new THREE.Mesh(new THREE.PlaneGeometry(n*shade.cell_m,n*shade.cell_m).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:heatTex,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
   heat.position.set(shade.origin[0]+n*shade.cell_m/2,.09,shade.origin[1]+n*shade.cell_m/2); heat.renderOrder=3; group.add(heat);
+  buildTraffic();
   scene.add(group);
   const sc=sunL.shadow.camera; Object.assign(sc,{left:-R*1.1,right:R*1.1,top:R*1.1,bottom:-R*1.1,near:10,far:R*4}); sc.updateProjectionMatrix();
   const tall=Math.max(0,...T.buildings.map(b=>b.height_m)); cam.r=Math.max(R*2.5,tall*2.6); cam.ph=.85;
@@ -213,7 +235,7 @@ function setHour(h){
   heatTex.needsUpdate=true;
   const s=shade.sun[k], el=s.el*Math.PI/180, az=s.az*Math.PI/180;
   const dx=Math.sin(az)*Math.cos(el), dz=-Math.cos(az)*Math.cos(el), dy=Math.sin(el);
-  sunL.position.set(dx*R*3,Math.max(dy,.02)*R*3,dz*R*3); sunL.intensity=s.el>2?1:.05; hemi.intensity=s.el>2?.85:.35;
+  sunL.position.set(dx*R*3,Math.max(dy,.02)*R*3,dz*R*3); sunDir.set(dx,Math.max(dy,.02),dz).normalize(); sunUp=s.el>2; sunL.intensity=s.el>2?1:.05; hemi.intensity=s.el>2?.85:.35;
   $('#hourOut').textContent=String(h).padStart(2,'0')+':00  sun '+Math.round(s.el)+'°';
   const p=(curSc?curSc.walk_shade_pct:shade.walk_shade_pct)[k]; $('#hud').innerHTML='HOUR <b>'+String(h).padStart(2,'0')+':00</b> &nbsp; SUN ELEV <b>'+s.el+'°</b> AZ <b>'+s.az+'°</b><br>WALKWAY IN SHADE <b>'+(p==null?'night':p+'%')+'</b>';
   drawChart(h);
@@ -276,7 +298,8 @@ function plannedTrees(list){
   group.add(g);
 }
 async function chooseFix(id){
-  document.querySelectorAll('.fix').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.id===id)));
+  document.querySelectorAll('#fixes .fix').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.id===id)));
+  setLayer('heat',true); setLayer('traffic',false);
   if(id==='today'){curSc=null;SH=SH0;WK=WK0;plannedTrees([]);$('#fixres').innerHTML='Today, as mapped.';setHour(+$('#hour').value);return}
   const sc=T.scenarios.find(x=>x.id===id);
   if(!SCA[id])SCA[id]={SH:new Uint8Array(await gunz('data/'+SCbase+sc.files.shade)),WK:new Uint8Array(await gunz('data/'+SCbase+sc.files.walk))};
@@ -291,11 +314,228 @@ async function chooseFix(id){
     '<div class="note">'+sc.assumptions+'. '+sc.cost_basis+'</div></div>';
   setHour(+$('#hour').value);
 }
+/* ---------- shared bits for the animated layers ---------- */
+const U={uScale:{value:800}};
+let fly=null, capT=null, pins=null;
+function flyTo(x,z,r,ph){orbit=false;$('#spin').textContent='Resume orbit';fly={t:0,f:{tx:cam.tx,tz:cam.tz,r:cam.r,ph:cam.ph},to:{tx:x,tz:z,r:r,ph:ph==null?cam.ph:ph}}}
+function stepFly(dt){if(!fly)return;fly.t=Math.min(1,fly.t+dt/1.6);const t=fly.t,e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;for(const k in fly.to)cam[k]=fly.f[k]+(fly.to[k]-fly.f[k])*e;cam.th+=dt*.12;if(t>=1)fly=null}
+function caption(title,text,ms){const el=$('#cap');el.innerHTML='<b>'+esc(title)+'</b>'+esc(text);el.style.display='block';clearTimeout(capT);if(ms!==0)capT=setTimeout(()=>{el.style.display='none'},ms||9000)}
+function poly(pts){const cum=[0];for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));return {pts:pts,cum:cum,len:cum[cum.length-1]}}
+function at(L,d){ // point and unit direction at distance d along a polyline
+  d=clamp(d,0,L.len); let i=1; while(i<L.cum.length-1&&L.cum[i]<d)i++;
+  const a=L.pts[i-1],b=L.pts[i],seg=(L.cum[i]-L.cum[i-1])||1,t=(d-L.cum[i-1])/seg;
+  return {x:a[0]+(b[0]-a[0])*t,z:a[1]+(b[1]-a[1])*t,tx:(b[0]-a[0])/seg,tz:(b[1]-a[1])/seg};
+}
+function offsetPts(pts,o){const n=pts.length,out=[];for(let i=0;i<n;i++){const a=pts[Math.max(0,i-1)],b=pts[i],c=pts[Math.min(n-1,i+1)];let dx1=b[0]-a[0],dz1=b[1]-a[1],dx2=c[0]-b[0],dz2=c[1]-b[1];const l1=Math.hypot(dx1,dz1)||1,l2=Math.hypot(dx2,dz2)||1;dx1/=l1;dz1/=l1;dx2/=l2;dz2/=l2;const nx=-(dz1+dz2),nz=dx1+dx2,l=Math.hypot(nx,nz)||1;out.push([b[0]+nx/l*o,b[1]+nz/l*o])}return out}
+function label(txt,col){const cv=document.createElement('canvas');cv.width=cv.height=128;const x=cv.getContext('2d');
+  x.fillStyle='#'+new THREE.Color(col).getHexString();x.beginPath();x.arc(64,64,54,0,7);x.fill();x.lineWidth=6;x.strokeStyle='#04070b';x.stroke();
+  x.fillStyle='#04070b';x.font='bold 70px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(txt,64,68);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));sp.scale.set(12,12,1);sp.renderOrder=9;return sp}
+function toXZ(lat,lon){const c=T.meta.center,k=Math.PI/180*6371008.8;return [(lon-c.lon)*Math.cos(c.lat*Math.PI/180)*k,-(lat-c.lat)*k]}
+
+/* ---------- traffic screen: simulated with assumed demand, so it ranks places and compares fixes ---------- */
+const LOADC=r=>r>=1?0xff4d3d:(r>=.85?0xff9a2e:(r>=.6?0xffd84a:0x3ddc97));
+const lakh=n=>n>=100?(n/100).toFixed(1)+' crore':(+n).toFixed(1)+' lakh';
+const DOT_VS='attribute vec3 acol;attribute float asz;varying vec3 vC;uniform float uScale;void main(){vC=acol;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=max(2.5,asz*uScale/-mv.z);gl_Position=projectionMatrix*mv;}';
+const DOT_FS='varying vec3 vC;void main(){vec2 d=gl_PointCoord-.5;float r=dot(d,d)*4.;float a=exp(-r*2.2);if(a<.04)discard;gl_FragColor=vec4(mix(vC,vec3(1.),exp(-r*9.)*.6),a);}';
+let TR=null, trafficG=null, flow=null, rings=[], solG=null, curArea=null, LK={};
+function buildTraffic(){
+  TR=T.traffic||null; trafficG=new THREE.Group(); trafficG.name='traffic'; rings=[]; flow=null; solG=null; curArea=null; LK={}; pins=null;
+  group.add(trafficG); if(!TR)return;
+  TR.links.forEach(l=>{if(l.pts.length>1)LK[l.id]=Object.assign({L:poly(l.pts),mul:1},l)});
+  // road links coloured by simulated peak-hour load
+  const byC={};
+  for(const id in LK){const l=LK[id],c=LOADC(l.r);(byC[c]=byC[c]||[]).push(l)}
+  for(const c in byC){const P=[],I=[];
+    for(const l of byC[c]){const rb=ribbon(l.pts,2+1.6*l.lanes,.34),off=P.length/3;P.push(...rb.P);rb.I.forEach(i=>I.push(i+off))}
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setIndex(I);
+    const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:+c,transparent:true,opacity:.5,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-6,polygonOffsetUnits:-6}));m.renderOrder=4;trafficG.add(m)}
+  // moving dots: more on busy links, and slower once a link passes capacity (the BPR curve the model routes with)
+  const parts=[];
+  for(const id in LK){const k=LK[id];if(k.L.len<4)continue;const n=clamp(Math.round(k.L.len/14*Math.min(k.r,1.4)*1.6),1,40);
+    for(let i=0;i<n;i++)parts.push({k:k,d:Math.random()*k.L.len,dir:i%2?1:-1,lane:(i%2?1:-1)*(.9+.8*Math.min(k.lanes,3)/3)});
+    if(parts.length>5000)break}
+  const N=parts.length,pos=new Float32Array(N*3),col=new Float32Array(N*3),sz=new Float32Array(N).fill(2.6),c=new THREE.Color();
+  parts.forEach((p,i)=>{c.setHex(LOADC(p.k.r));col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b});
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('acol',new THREE.BufferAttribute(col,3));g.setAttribute('asz',new THREE.BufferAttribute(sz,1));
+  const pts=new THREE.Points(g,new THREE.ShaderMaterial({uniforms:{uScale:U.uScale},vertexShader:DOT_VS,fragmentShader:DOT_FS,transparent:true,depthWrite:false}));
+  pts.frustumCulled=false;pts.renderOrder=6;trafficG.add(pts);flow={parts:parts,pos:pos,pts:pts};
+  // pulsing numbered rings at the hot spots
+  TR.areas.forEach((a,i)=>{const col=a.severity==='high'?0xff4d3d:(a.severity==='medium'?0xffb83d:0x3ddc97);
+    const ag=new THREE.Group();ag.position.set(a.x,.6,a.z);
+    const disc=new THREE.Mesh(new THREE.CircleGeometry(6,40).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,depthWrite:false}));
+    const r1=new THREE.Mesh(new THREE.RingGeometry(9,11,56).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:col,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+    const r2=new THREE.Mesh(r1.geometry,r1.material.clone());
+    const stem=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,20,6).translate(0,10,0),new THREE.MeshBasicMaterial({color:col}));
+    const lab=label(String(a.id),col);lab.position.y=23;
+    ag.add(disc,r1,r2,stem,lab);trafficG.add(ag);rings.push({a:a,r1:r1,r2:r2,disc:disc,lab:lab,ph:i*.23,col:col});
+  });
+}
+function trafficPanel(){
+  $('#tsol').innerHTML='';
+  if(!TR){$('#tsum').textContent='The road network here is too thin for the traffic screen.';$('#tlist').innerHTML='';return}
+  const s=TR.summary;
+  $('#tsum').innerHTML=s.links_over_capacity+' road links pass their assumed capacity in the peak hour, '+s.links_over_80pct+' are above 80%. <span class="tag t-s">simulated</span><br><span style="color:var(--faint)">'+esc(TR.method.limits)+'</span>';
+  $('#tlist').innerHTML=TR.areas.map(a=>'<button class="fix area" data-a="'+a.id+'" aria-pressed="false"><b><i class="sev sev-'+a.severity+'"></i>Area '+a.id+' · score '+a.score+'</b><small>'+(a.roads.length?esc(a.roads.slice(0,2).join(' / ')):'unnamed junction')+' · peak load '+a.load_ratio+'× capacity</small></button>').join('');
+  $('#tlist').onclick=e=>{const b=e.target.closest('.area');if(b)pickArea(+b.dataset.a)};
+}
+function sortSols(id){return TR.solutions.filter(s=>s.area_id===id).sort((p,q)=>(q.recommended-p.recommended)||(p.area_load_change_pct-q.area_load_change_pct))}
+function pickArea(id){
+  if(!TR)return; const a=TR.areas.find(x=>x.id===id); if(!a)return;
+  curArea=a; clearSol(); resetMul();
+  setLayer('traffic',true); setLayer('heat',false);
+  document.querySelectorAll('#tlist .area').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.a===id)));
+  flyTo(a.x,a.z,Math.max(150,R*.75),.75);
+  const sols=sortSols(id), sg=v=>(v>0?'+':'')+v;
+  $('#tsol').innerHTML='<div class="note" style="margin:0;color:var(--ink)"><b>Area '+a.id+'</b> · '+(a.roads.length?esc(a.roads.join(' / ')):'unnamed junction')+': '+esc(a.reasons.join('; '))+'.</div>'+
+    (sols.length?sols.map((s,i)=>'<button class="fix sol" data-i="'+i+'" aria-pressed="false"><b>'+esc(s.title)+(s.recommended?'<span class="tag t-r">worth studying</span>':'')+'</b><small>'+esc(s.what)+'</small><span class="delta">area load '+s.area_load_before+'× → '+s.area_load_after+'× ('+sg(s.area_load_change_pct)+'%)<br>network delay '+sg(s.network_delay_change_pct)+'% · ₹ '+lakh(s.cost_lakh)+' <span class="tag t-a">assumed</span></span></button>').join('')+
+      '<div class="note">'+esc(sols[0].cost_basis)+'. Click a fix to see it on the street.</div>':'<div class="note">No tested fix changed the simulated load here.</div>');
+  $('#tsol').onclick=e=>{const b=e.target.closest('.sol');if(!b)return;document.querySelectorAll('#tsol .sol').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));previewSol(sols[+b.dataset.i])};
+  caption('Traffic area '+a.id+' · score '+a.score,a.reasons[0]+'. Simulated with assumed demand: read it as a ranking, not a vehicle count.');
+}
+function clearSol(){if(solG){trafficG.remove(solG);solG=null}rings.forEach(o=>{[o.r1,o.r2,o.disc].forEach(m=>m.material.color.setHex(o.col))})}
+function resetMul(){for(const id in LK)LK[id].mul=1}
+function solMesh(rb,col,op){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(rb.P,3));g.setIndex(rb.I);const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:col,transparent:op<1,opacity:op,side:THREE.DoubleSide,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-8,polygonOffsetUnits:-8}));m.renderOrder=5;solG.add(m);return m}
+function box(w,h,d,col){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color:col}));m.castShadow=true;solG.add(m);return m}
+function previewSol(s){
+  clearSol(); resetMul(); const a=curArea, k=LK[s.link_id];
+  solG=new THREE.Group(); trafficG.add(solG);
+  const ratio=s.area_load_after/Math.max(.01,s.area_load_before);
+  a.links.forEach(id=>{if(LK[id])LK[id].mul=ratio}); if(k)k.mul=ratio;
+  const after=LOADC(s.area_load_after); rings.forEach(o=>{if(o.a.id===a.id)[o.r1,o.r2,o.disc].forEach(m=>m.material.color.setHex(after))});
+  const L=k?k.L:null, w=k?2+1.6*k.lanes:8, mid=L?at(L,L.len/2):{x:a.x,z:a.z,tx:1,tz:0}, rotY=(tx,tz)=>Math.atan2(-tz,tx);
+  if(s.kind==='bus_lane'&&L){
+    const o=w*.5-1.6; solMesh(ribbon(offsetPts(k.pts,o),3.2,.42),0xd23a2e,.9);
+    const buses=[0,1,2].map(()=>box(11,3.2,2.6,0xd23a2e));
+    solG.userData.anim=(dt,t)=>buses.forEach((b,i)=>{const q=at(L,(t*9+i*L.len/3)%L.len);b.position.set(q.x-q.tz*o,1.9,q.z+q.tx*o);b.rotation.y=rotY(q.tx,q.tz)});
+  }else if(s.kind==='signal_retiming'){
+    const heads=[];
+    [[1,1],[-1,1],[1,-1],[-1,-1]].forEach((d,i)=>{const x=a.x+d[0]*9,z=a.z+d[1]*9;const pole=box(.35,6,.35,0x2a2f36);pole.position.set(x,3,z);const head=box(.8,2,.8,0x15191e);head.position.set(x,6.6,z);
+      const lamp=new THREE.Mesh(new THREE.SphereGeometry(.55,12,8),new THREE.MeshBasicMaterial({color:0x3ddc97}));lamp.position.set(x,6.6,z);solG.add(lamp);heads.push({lamp:lamp,off:i%2?0:3})});
+    solG.userData.anim=(dt,t)=>heads.forEach(h=>{const p=(t+h.off)%6;h.lamp.material.color.setHex(p<2.5?0x3ddc97:(p<3?0xffb83d:0xff4d3d))});
+  }else if(s.kind==='foot_overbridge'){
+    const nx=-mid.tz,nz=mid.tx,len=w+16,ry=rotY(nx,nz);
+    const deck=box(len,.9,3.2,0xd6efff);deck.position.set(mid.x,6.8,mid.z);deck.rotation.y=ry;
+    [-1,1].forEach(sg=>{const tw=box(3.6,7.2,3.6,0xaecbe0);tw.position.set(mid.x+nx*sg*len/2,3.6,mid.z+nz*sg*len/2);
+      const rail=box(len,1,.15,0x8fb3e8);rail.position.set(mid.x-mid.tx*sg*1.5,7.8,mid.z-mid.tz*sg*1.5);rail.rotation.y=ry});
+    const walkers=[0,1,2,3,4].map(()=>{const m=new THREE.Mesh(new THREE.SphereGeometry(.45,8,6),new THREE.MeshBasicMaterial({color:0xffd24a}));solG.add(m);return m});
+    solG.userData.anim=(dt,t)=>walkers.forEach((m,i)=>{const u=((t*.12+i/5)%1-.5)*len*(i%2?1:-1);m.position.set(mid.x+nx*u,7.8,mid.z+nz*u)});
+  }else if(s.kind==='route_diversion'&&L){
+    const chev=[];for(let d=0;d<L.len;d+=10){const o=new THREE.Object3D(),c=new THREE.Mesh(new THREE.ConeGeometry(1.5,3.2,4).rotateZ(-Math.PI/2),new THREE.MeshBasicMaterial({color:0x3dd6ff}));o.add(c);solG.add(o);chev.push(o)}
+    solG.userData.anim=(dt,t)=>chev.forEach((o,i)=>{const q=at(L,(i*10+t*14)%L.len);o.position.set(q.x,2.2,q.z);o.rotation.y=rotY(q.tx,q.tz)});
+  }else if(s.kind==='add_lane'&&L){
+    solMesh(ribbon(offsetPts(k.pts,w*.5+1.7),3.4,.4),0x6d737c,1); solMesh(ribbon(offsetPts(k.pts,w*.5+3.3),.3,.44),0xffffff,1);
+    solMesh(ribbon(offsetPts(k.pts,w*.5+1.7),3.4,.43),0x3dd6ff,.25);
+  }
+  if(L){const glow=solMesh(ribbon(k.pts,w+2,.38),0x3dd6ff,.18);glow.userData.pulse=true}
+  const fx=solG.children.find(m=>m.userData.pulse), prev=solG.userData.anim;
+  solG.userData.anim=(dt,t)=>{if(prev)prev(dt,t);if(fx)fx.material.opacity=.12+.12*(1+Math.sin(t*4))};
+  caption(s.title,s.what+'. Simulated: area load '+s.area_load_before+'× to '+s.area_load_after+'×, network delay '+(s.network_delay_change_pct>0?'+':'')+s.network_delay_change_pct+'%. '+s.assumption+'.',12000);
+}
+
+/* ---------- doctor's places ---------- */
+function showPoints(list){
+  if(pins){group.remove(pins);pins=null} if(!list.length)return;
+  const tp=list.find(p=>p.kind==='traffic');
+  if(tp&&TR){const q=toXZ(tp.lat,tp.lon);let best=null,bd=1e9;TR.areas.forEach(a=>{const d=Math.hypot(a.x-q[0],a.z-q[1]);if(d<bd){bd=d;best=a}});if(best)pickArea(best.id);return}
+  pins=new THREE.Group();
+  list.forEach((p,i)=>{const q=toXZ(p.lat,p.lon),g=new THREE.Group();g.position.set(q[0],0,q[1]);
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(2.2,6,16).rotateX(Math.PI).translate(0,3,0),new THREE.MeshBasicMaterial({color:0xffd24a}));cone.position.y=8;
+    const lab=label(String(i+1),0xffd24a);lab.position.y=19;lab.scale.set(8,8,1);g.add(cone,lab);g.userData.ph=i*.4;pins.add(g)});
+  group.add(pins);
+  const c=list.reduce((s,p)=>{const q=toXZ(p.lat,p.lon);return [s[0]+q[0]/list.length,s[1]+q[1]/list.length]},[0,0]);
+  flyTo(c[0],c[1],Math.max(170,R*.9),.8);
+  caption("The doctor's places",list.slice(0,4).map((p,i)=>(i+1)+'. '+p.label).join('   '),12000);
+}
+
+/* ---------- gaussian splat view: the twin redrawn as soft lit gaussians (stylized, not a photo-trained capture) ---------- */
+const SPLAT_VS='attribute vec3 acol;attribute vec3 anrm;attribute float asz;attribute float ar;uniform float uScale;uniform float uReveal;uniform float uDay;uniform vec3 uSun;varying vec3 vC;varying float vA;'+
+  'void main(){float p=clamp((uReveal-ar)/.12,0.,1.);vec3 q=position;q.y+=(1.-p)*(18.+ar*30.);'+
+  'float lit=uDay*max(dot(anrm,uSun),0.);vC=acol*(.42+.18*anrm.y+.75*lit);vA=p;'+
+  'vec4 mv=modelViewMatrix*vec4(q,1.);gl_PointSize=clamp(asz*p*uScale/-mv.z,0.,64.);gl_Position=projectionMatrix*mv;}';
+const SPLAT_FS='varying vec3 vC;varying float vA;void main(){vec2 d=gl_PointCoord-.5;float r=dot(d,d)*4.;float a=exp(-r*2.6)*vA;if(a<.12)discard;gl_FragColor=vec4(vC,a);}';
+let splat=null, splatOn=false, revealT=0, splatCount=0;
+function disposeSplats(){if(splat){scene.remove(splat);splat.geometry.dispose();splat.material.dispose();splat=null}}
+function rnd(seed){let s=seed>>>0||1;return ()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return (s>>>0)/4294967296}}
+function inPoly(x,z,f){let c=false;for(let i=0,j=f.length-1;i<f.length;j=i++){const a=f[i],b=f[j];if((a[1]>z)!==(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
+function buildSplats(){
+  disposeSplats(); const rand=rnd(7), RM=R*1.05, P=[],C=[],N=[],S=[],A=[], col=new THREE.Color();
+  let area=4*R*R*.5; T.buildings.forEach(b=>{const f=b.footprint;let per=0,ar=0;for(let i=0;i<f.length;i++){const a=f[i],c=f[(i+1)%f.length];per+=Math.hypot(c[0]-a[0],c[1]-a[1]);ar+=a[0]*c[1]-c[0]*a[1]}area+=per*b.height_m+Math.abs(ar)/2});
+  const sp=Math.max(1.1,Math.sqrt(area/260000));  // spacing that keeps a scene to a few hundred thousand splats
+  const push=(x,y,z,nx,ny,nz,hex,jit,size)=>{col.setHex(hex);const j=1+(rand()-.5)*jit;P.push(x,y,z);N.push(nx,ny,nz);C.push(Math.min(1,col.r*j),Math.min(1,col.g*j),Math.min(1,col.b*j));S.push(size||sp*1.9);A.push(Math.hypot(x,z)/RM*.85+rand()*.1)};
+  T.buildings.forEach(b=>{
+    const f=b.footprint,h=b.height_m,known=b.height_source!=='default',wall=known?0x8fb3e8:0xc9a98a,roof=known?0xd2e2ff:0xe0cdb6,win=known?0x4a6a9a:0x8a6f55;
+    let cx=0,cz=0;f.forEach(p=>{cx+=p[0]/f.length;cz+=p[1]/f.length});
+    for(let i=0;i<f.length;i++){const a=f[i],c=f[(i+1)%f.length],ex=c[0]-a[0],ez=c[1]-a[1],L=Math.hypot(ex,ez);if(L<.3)continue;
+      let nx=ez/L,nz=-ex/L;if(nx*((a[0]+c[0])/2-cx)+nz*((a[1]+c[1])/2-cz)<0){nx=-nx;nz=-nz}
+      const nu=Math.max(1,Math.round(L/sp)),nv=Math.max(1,Math.round(h/sp));
+      for(let u=0;u<nu;u++)for(let v=0;v<nv;v++){const t=(u+.5+(rand()-.5)*.4)/nu,y=(v+.5+(rand()-.5)*.4)/nv*h,band=(y%3.2)>1.1&&(y%3.2)<2.4&&(u%3)!==0;
+        push(a[0]+ex*t+nx*.05,y,a[1]+ez*t+nz*.05,nx,0,nz,band?win:wall,.16)}}
+    let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;f.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1])});
+    for(let x=x0+sp/2;x<x1;x+=sp)for(let z=z0+sp/2;z<z1;z+=sp){const jx=x+(rand()-.5)*sp*.4,jz=z+(rand()-.5)*sp*.4;if(inPoly(jx,jz,f))push(jx,h+.05,jz,0,1,0,roof,.12)}
+  });
+  const RC={main:0x34383f,mid:0x3c4048,local:0x464a52,walk:0xbdb6a8};
+  T.roads.forEach(r=>{if(r.pts.length<2)return;const L=poly(r.pts),w=r.width_m,y=(r.bridge?6.5:0)+.05,nw=Math.max(1,Math.round(w/sp));
+    for(let d=sp/2;d<L.len;d+=sp){const q=at(L,d);for(let k=0;k<nw;k++){const o=((k+.5)/nw-.5)*w+(rand()-.5)*sp*.3;push(q.x-q.tz*o,y,q.z+q.tx*o,0,1,0,RC[r.cls]||0x464a52,.1)}}});
+  const gs=sp*1.7;for(let x=-RM;x<RM;x+=gs)for(let z=-RM;z<RM;z+=gs)push(x+rand()*gs,-.02,z+rand()*gs,0,1,0,rand()<.5?0x6f7d5c:0x7d8b6c,.2,gs*2);
+  T.trees.forEach(t=>{const cy=t.height_m-t.crown_r*.85,n=Math.round(clamp(4*Math.PI*t.crown_r*t.crown_r/(sp*sp)*1.4,12,300));
+    for(let i=0;i<n;i++){const u=rand()*2-1,ph=rand()*6.283,s=Math.sqrt(1-u*u),rr=Math.cbrt(.35+.65*rand()),nx=s*Math.cos(ph),nz=s*Math.sin(ph);
+      push(t.x+nx*t.crown_r*rr,cy+u*t.crown_r*.85*rr,t.z+nz*t.crown_r*rr,nx,u,nz,t.source==='osm'?0x2e8b57:0x5fbf5a,.35)}
+    for(let y=.5;y<cy;y+=sp*.8)push(t.x,y,t.z,0,1,0,0x6b5a46,.1,sp*1.2)});
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('acol',new THREE.Float32BufferAttribute(C,3));g.setAttribute('anrm',new THREE.Float32BufferAttribute(N,3));
+  g.setAttribute('asz',new THREE.Float32BufferAttribute(S,1));g.setAttribute('ar',new THREE.Float32BufferAttribute(A,1));
+  splat=new THREE.Points(g,new THREE.ShaderMaterial({uniforms:{uScale:U.uScale,uReveal:{value:0},uSun:{value:sunDir},uDay:{value:1}},vertexShader:SPLAT_VS,fragmentShader:SPLAT_FS,transparent:true,depthWrite:true}));
+  splat.frustumCulled=false; scene.add(splat); revealT=0; splatCount=P.length/3;
+}
+$('#splatBtn').onclick=()=>{splatOn=!splatOn;$('#splatBtn').setAttribute('aria-pressed',String(splatOn));
+  if(splatOn){if(!splat)buildSplats();revealT=0;scene.background.setHex(0x0b1522);scene.fog.color.setHex(0x0b1522);
+    caption('Gaussian splat view','The same twin drawn as '+splatCount.toLocaleString()+' soft gaussian points, lit by the real sun for this hour. A stylized view of the geometry, not a photo-trained 3D Gaussian Splatting capture.',9000)}
+  else{scene.background.setHex(0xa9c6e0);scene.fog.color.setHex(0xa9c6e0)}};
+
+/* ---------- play the day, guided tour ---------- */
+let playT=null, tourT=[], touring=false;
+function stopPlay(){clearInterval(playT);playT=null;$('#play').setAttribute('aria-pressed','false');$('#play').textContent='Play the day'}
+$('#play').onclick=()=>{if(playT){stopPlay();return}$('#play').setAttribute('aria-pressed','true');$('#play').textContent='Stop';
+  const hs=shade.hours;let i=hs.indexOf(+$('#hour').value);playT=setInterval(()=>{i=(i+1)%hs.length;$('#hour').value=hs[i];setHour(hs[i])},700)};
+function stopTour(){tourT.forEach(clearTimeout);tourT=[];if(touring){touring=false;$('#tour').setAttribute('aria-pressed','false');$('#tour').textContent='Guided tour'}}
+$('#tour').onclick=()=>{if(touring){stopTour();$('#cap').style.display='none';return}
+  touring=true;$('#tour').setAttribute('aria-pressed','true');$('#tour').textContent='Stop tour';
+  const a=TR&&TR.areas[0], st=T.stats;
+  const steps=[
+    [0,()=>{if(splatOn)$('#splatBtn').click();flyTo(0,0,Math.max(R*2.4,300),.85);orbit=true;caption('1 · The twin',st.buildings+' buildings and '+st.road_ways+' road ways from OpenStreetMap and '+st.trees+' trees, on real coordinates.',0)}],
+    [6500,()=>{setLayer('heat',true);setLayer('traffic',false);$('#hour').value=12;setHour(12);caption('2 · Shade at noon','Orange is walkway in full sun, green is tree shade, blue is building shade. Computed from the real sun position.',0)}],
+    [13000,()=>{if(a){pickArea(a.id);caption('3 · Traffic hot spot','Area '+a.id+' scores '+a.score+' of 100. The dots crawl where the simulated load passes capacity.',0)}}],
+    [20000,()=>{const b=document.querySelector('#tsol .sol');if(b)b.click()}],
+    [28000,()=>{flyTo(0,0,Math.max(R*2.2,300),.9);orbit=true;if(!splatOn)$('#splatBtn').click()}],
+    [37000,()=>{if(splatOn)$('#splatBtn').click();caption('5 · Ask the doctor','The model can only answer by calling these same measuring tools, and every number it writes is checked.',0);brief()}],
+    [45000,()=>{stopTour()}]];
+  steps.forEach(s=>tourT.push(setTimeout(s[1],s[0])));
+};
+stage.addEventListener('pointerdown',()=>{fly=null;stopTour()});
+
+/* ---------- per-frame animation ---------- */
+function animate(dt,t){
+  U.uScale.value=renderer.domElement.height/(2*Math.tan(camera.fov*Math.PI/360));
+  if(flow&&trafficG.visible){const P=flow.pos;
+    flow.parts.forEach((p,i)=>{const k=p.k,r=k.r*k.mul,v=29/(1+Math.pow(r,4));p.d+=p.dir*v*dt;if(p.d>k.L.len)p.d-=k.L.len;if(p.d<0)p.d+=k.L.len;
+      const q=at(k.L,p.d);P[i*3]=q.x-q.tz*p.lane;P[i*3+1]=.9;P[i*3+2]=q.z+q.tx*p.lane});
+    flow.pts.geometry.attributes.position.needsUpdate=true}
+  rings.forEach(o=>{const sel=curArea&&curArea.id===o.a.id,b=sel?1.5:1,f=(t*.55+o.ph)%1,f2=(f+.5)%1;
+    o.r1.scale.setScalar(b*(.6+f*1.6));o.r1.material.opacity=(1-f)*.9;o.r2.scale.setScalar(b*(.6+f2*1.6));o.r2.material.opacity=(1-f2)*.9;
+    const ls=Math.max(8,cam.r*.03);o.lab.scale.set(ls,ls,1)});
+  if(solG&&solG.userData.anim)solG.userData.anim(dt,t);
+  if(pins)pins.children.forEach(g=>{g.children[0].position.y=8+Math.sin(t*3+g.userData.ph)*1.5});
+  if(splat&&splatOn){revealT+=dt;splat.material.uniforms.uReveal.value=Math.min(1.25,revealT/3.2);splat.material.uniforms.uDay.value=sunUp?1:.15}
+}
 /* ---------- layers + boot ---------- */
-const LAYERS=[['buildings','Buildings','#9fc4ff'],['roads','Roads and footpaths','#3a3f47'],['trees','Trees (OSM + canopy map)','#7bd36a'],['heat','Sun and shade overlay','#ff8a2b'],['walkOnly','Overlay on walkways only','#b9b4aa']];
-$('#layers').innerHTML=LAYERS.map(l=>'<div class="layer"><i style="background:'+l[2]+'"></i><span>'+l[1]+'</span><button class="sw" data-k="'+l[0]+'" role="switch" aria-checked="true" aria-label="'+l[1]+'"></button></div>').join('');
-$('#layers').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;const k=b.dataset.k;layers[k]=!layers[k];b.setAttribute('aria-checked',String(layers[k]));if(k==='walkOnly'&&shade)setHour(+$('#hour').value)};
-function applyLayers(){if(!group)return;group.getObjectByName('buildings').visible=layers.buildings;group.getObjectByName('roads').visible=layers.roads;group.getObjectByName('trees').visible=layers.trees;heat.visible=layers.heat}
+const LAYERS=[['traffic','Traffic load and flow (simulated)','#ff4d3d'],['buildings','Buildings','#9fc4ff'],['roads','Roads and footpaths','#3a3f47'],['trees','Trees (OSM + canopy map)','#7bd36a'],['heat','Sun and shade overlay','#ff8a2b'],['walkOnly','Overlay on walkways only','#b9b4aa']];
+$('#layers').innerHTML=LAYERS.map(l=>'<div class="layer"><i style="background:'+l[2]+'"></i><span>'+l[1]+'</span><button class="sw" data-k="'+l[0]+'" role="switch" aria-checked="'+layers[l[0]]+'" aria-label="'+l[1]+'"></button></div>').join('');
+function setLayer(k,on){layers[k]=on;const b=document.querySelector('.sw[data-k="'+k+'"]');if(b)b.setAttribute('aria-checked',String(on))}
+$('#layers').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;const k=b.dataset.k;setLayer(k,!layers[k]);
+  if(k==='traffic'&&layers.traffic)setLayer('heat',false);if(k==='heat'&&layers.heat)setLayer('traffic',false);if(k==='walkOnly'&&shade)setHour(+$('#hour').value)};
+function applyLayers(){if(!group)return;const solid=!splatOn;group.getObjectByName('buildings').visible=layers.buildings&&solid;group.getObjectByName('roads').visible=layers.roads&&solid;group.getObjectByName('trees').visible=layers.trees&&solid;heat.visible=layers.heat&&solid;
+  const pl=group.getObjectByName('planned');if(pl)pl.visible=solid;if(trafficG)trafficG.visible=layers.traffic;if(splat)splat.visible=splatOn;$('#legend').classList.toggle('tr',layers.traffic&&!!TR);$('#legend').style.display=splatOn&&!layers.traffic?'none':''}
 let SCbase='', SH=null, WK=null, SH0=null, WK0=null, curSc=null, SCA={};
 async function gunz(url){const r=await fetch(url);if(!r.ok)throw new Error('missing '+url);const b=await r.arrayBuffer();if(!url.endsWith('.gz'))return b;return await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()}
 async function load(path){
@@ -303,29 +543,43 @@ async function load(path){
   const base=path.slice(0,path.lastIndexOf('/')+1);
   T=await (await fetch('data/'+path)).json(); shade=T.shade;
   SH=new Uint8Array(await gunz('data/'+base+shade.file)); WK=new Uint8Array(await gunz('data/'+base+shade.walk_file)); SH0=SH; WK0=WK; curSc=null; SCA={}; SCbase=base;
-  build(); stats(); buildFixes(); const sl=$('#hour'); sl.min=shade.hours[0]; sl.max=shade.hours[shade.hours.length-1]; sl.value=15; setHour(15); applyLayers(); $('#msg').style.display='none';
+  disposeSplats(); build(); stats(); buildFixes(); trafficPanel(); if(splatOn)buildSplats(); const sl=$('#hour'); sl.min=shade.hours[0]; sl.max=shade.hours[shade.hours.length-1]; sl.value=15; setHour(15); applyLayers(); $('#msg').style.display='none';
 }
 $('#hour').addEventListener('input',e=>setHour(+e.target.value));
 /* ---------- ask the doctor ---------- */
 const CFG=window.STREETSCOPE||{api:'http://localhost:8766/ask',token:''};
-['Where should we plant first?','How shaded is the walkway at noon?','Tell me about this place'].forEach(t=>{const b=document.createElement('button');b.className='btn';b.textContent=t;b.style.fontSize='11px';b.style.textTransform='none';b.onclick=()=>{$('#q').value=t;ask()};$('#qs').appendChild(b)});
-async function ask(){
-  const q=$('#q').value.trim(); if(!q)return;
-  $('#ans').textContent='Thinking...'; $('#trace').textContent='';
+['Where is traffic worst and what fixes it?','Where should we plant first?','How shaded is the walkway at noon?','Tell me about this place'].forEach(t=>{const b=document.createElement('button');b.className='btn';b.textContent=t;b.style.fontSize='11px';b.style.textTransform='none';b.onclick=()=>{$('#q').value=t;ask()};$('#qs').appendChild(b)});
+const esc=t=>String(t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const md=t=>esc(t).replace(/^#+\s*(.+)$/gm,'<b>$1</b>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+async function callDoctor(body,wait){
+  $('#ans').textContent=wait; $('#trace').textContent='';
   try{
-    const r=await fetch(CFG.api,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},CFG.token?{'x-ask-token':CFG.token}:{}),body:JSON.stringify({site:$('#site').value.split('/')[0],question:q})});
+    const r=await fetch(CFG.api,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},CFG.token?{'x-ask-token':CFG.token}:{}),body:JSON.stringify(Object.assign({site:$('#site').value.split('/')[0]},body))});
     const j=await r.json(); if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
-    $('#ans').textContent=j.answer;
-    $('#trace').innerHTML='tools: '+j.tools_called.map(t=>t.tool).join(', ')+'<br>'+(j.verified?'<span style="color:var(--good)">every number in the answer came from a tool</span>':'<span style="color:var(--bad)">not backed by a tool: '+j.unverified_numbers.join(', ')+'</span>')+(j.fallback_reason?'<br>language model unavailable ('+j.fallback_reason+'), showing the offline answer':'');
+    $('#ans').innerHTML=md(j.answer);
+    const who=j.llm?modelName(j.llm.model)+' via '+j.llm.provider+' · '+j.llm.turns+' turns':'offline templates';
+    $('#trace').innerHTML='answered by: '+esc(who)+'<br>tools: '+j.tools_called.map(t=>t.tool).join(', ')+'<br>'+(j.verified?'<span style="color:var(--good)">every number in the answer came from a tool</span>':'<span style="color:var(--bad)">not backed by a tool: '+j.unverified_numbers.join(', ')+'</span>')+(j.fallback_reason?'<br>language model unavailable ('+esc(j.fallback_reason)+'), showing the offline answer':'');
+    showPoints(j.map_points||[]);
   }catch(e){$('#ans').textContent='The doctor service is not reachable. Start it with: python scripts/dev_api.py ('+e.message+')';}
 }
+function ask(){const q=$('#q').value.trim(); if(q)callDoctor({question:q},'Thinking...')}
+function brief(){callDoctor({mode:'brief'},'Writing the brief: the doctor is calling the measuring tools...')}
+$('#brief').onclick=brief;
+const modelName=m=>!m?'offline templates':(/sonnet-5-5/.test(m)?'Claude Sonnet 5.5':m);
+(async function status(){
+  const el=$('#llm');
+  try{const j=await (await fetch(CFG.api.replace(/\/ask$/,'/status'))).json();
+    if(j.mode==='offline'){el.textContent='offline templates';el.title='No language model key set. Answers use fixed templates over the same tools.'}
+    else{el.textContent=modelName(j.model);el.classList.add('on');el.title=j.model+' via '+j.provider}
+  }catch(e){el.textContent='doctor offline';el.title='Start it with: python scripts/dev_api.py'}
+})();
 $('#ask').onclick=ask; $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')ask()});
 (async function boot(){
   try{
     const idx=await (await fetch('data/index.json')).json();
     $('#site').innerHTML=idx.sites.map(s=>'<option value="'+s.twin+'">'+s.name+'</option>').join('');
     $('#site').onchange=e=>load(e.target.value).catch(err=>{$('#msg').style.display='grid';$('#msg').textContent='Could not load: '+err.message});
-    // deep links: viewer.html?site=dupont&fix=trees&hour=12&view=top&ask=Where%20should%20we%20plant%20first%3F
+    // deep links: viewer.html?site=dupont&fix=trees&hour=12&view=top&area=1&splat=1&tour=1&brief=1&ask=Where%20should%20we%20plant%20first%3F
     const q=new URLSearchParams(location.search), want=q.get('site');
     const opt=want&&[...$('#site').options].find(o=>o.value.startsWith(want+'/'));
     if(opt)$('#site').value=opt.value;
@@ -333,11 +587,15 @@ $('#ask').onclick=ask; $('#q').addEventListener('keydown',e=>{if(e.key==='Enter'
     if(q.get('hour')){const h=+q.get('hour');$('#hour').value=h;setHour(h)}
     if(q.get('fix'))await chooseFix(q.get('fix'));
     if(q.get('view')==='top')$('#top').click();
+    if(q.get('area')&&TR)pickArea(+q.get('area'));
+    if(q.get('splat')==='1')$('#splatBtn').click();
+    if(q.get('tour')==='1')$('#tour').click();
+    if(q.get('brief')==='1')brief();
     if(q.get('ask')){$('#q').value=q.get('ask');ask()}
   }catch(e){$('#msg').style.display='grid';$('#msg').textContent='Could not load the twin. Run scripts/serve.py and open http://localhost:8765/viewer.html. '+e.message}
 })();
 let last=performance.now();
-(function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(orbit)cam.th+=dt*.06;applyCam();applyLayers();renderer.render(scene,camera);requestAnimationFrame(frame)})(last);
+(function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(orbit)cam.th+=dt*.06;stepFly(dt);applyCam();applyLayers();animate(dt,now/1000);renderer.render(scene,camera);requestAnimationFrame(frame)})(last);
 })();
 </script>
 </body>

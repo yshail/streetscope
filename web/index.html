@@ -59,29 +59,30 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--dim);fon
   <section class="hero">
     <div>
       <h1>Heat is 3D. Maps are flat.</h1>
-      <p>Pick any junction. Streetscope builds a 3D twin from open data, shows where people walk in the sun, and tests fixes with real shade maths. Its AI doctor only quotes numbers its tools produced.</p>
+      <p>Pick any junction. Streetscope builds a 3D twin from open data, shows where people walk in the sun, screens where traffic jams, and tests fixes for both. Its AI doctor, Claude Sonnet 5.5, only quotes numbers its tools produced.</p>
       <div class="cta">
         <a class="btn primary" href="viewer.html?site=aiims&fix=trees&view=top">See the AIIMS junction fix</a>
-        <a class="btn" href="viewer.html?site=times">Level 1: LiDAR, New York</a>
+        <a class="btn" href="viewer.html?site=dupont&area=1">Traffic hot spots</a>
+        <a class="btn" href="viewer.html?site=aiims&tour=1">Guided tour</a>
         <a class="btn" href="viewer.html?site=aiims&view=top&ask=Where%20should%20we%20plant%20first%3F">Ask the doctor</a>
       </div>
     </div>
-    <a href="viewer.html?site=aiims&fix=trees&view=top"><img class="shot" src="img/02-aiims-trees.jpg" alt="AIIMS junction with 132 planted street trees in yellow along the walkways" width="1500" height="950"></a>
+    <a href="viewer.html?site=aiims&fix=trees&view=top"><img class="shot" src="img/02-aiims-trees.jpg" alt="AIIMS junction with planted street trees in yellow along the walkways" width="1500" height="950"></a>
   </section>
 
   <section class="stats" id="stats" aria-live="polite">
-    <div><b id="s1">8.9% to 20%</b><span>day-mean walkway shade at AIIMS junction with 132 street trees</span></div>
+    <div><b id="s1">8.5% to 18.3%</b><span>day-mean walkway shade at AIIMS junction with 134 street trees</span></div>
     <div><b id="s2">369</b><span>tree tops found where OpenStreetMap mapped none</span></div>
-    <div><b id="s3">91 of 103</b><span>Times Square building heights measured by USGS LiDAR</span></div>
-    <div><b>5</b><span>real sites in Delhi, Tokyo, New York and Washington DC</span></div>
+    <div><b id="s3">91 of 102</b><span>Times Square building heights measured by USGS LiDAR</span></div>
+    <div><b id="s4">1.24 to 1.06</b><span>simulated load at the worst Dupont Circle junction after diverting 15% of through trips</span></div>
   </section>
 
   <h2>HOW IT WORKS</h2>
   <section class="steps">
     <div class="step"><i>1 · Build</i><h3>Open data in</h3><p>OpenStreetMap roads and buildings, the Meta and WRI canopy map, and USGS airborne LiDAR from AWS Open Data. Anywhere on Earth works; LiDAR sharpens it in the US.</p></div>
     <div class="step"><i>2 · Measure</i><h3>Shade, hour by hour</h3><p>Real sun position and a height grid give the share of each walkway in sun, tree shade or building shade, for every hour of the day.</p></div>
-    <div class="step"><i>3 · Fix</i><h3>Test it before you build it</h3><p>Plant trees, widen footpaths, or both. See shade and cost change on the map, with every assumption on screen.</p></div>
-    <div class="step"><i>4 · Ask</i><h3>A doctor that cannot make things up</h3><p>An agent on Amazon Bedrock may only call measuring tools. A checker flags any number in its answer that no tool returned.</p></div>
+    <div class="step"><i>3 · Fix</i><h3>Test it before you build it</h3><p>Plant trees or widen footpaths and watch the shade change. Find the junctions that jam in a simulated peak hour, then try a bus lane, signal timing, an overbridge or a diversion. Every assumption is on screen.</p></div>
+    <div class="step"><i>4 · Ask</i><h3>A doctor that cannot make things up</h3><p>Claude Sonnet 5.5 (on Amazon Bedrock when deployed) may only call measuring tools. A checker flags any number in its answer that no tool returned.</p></div>
   </section>
 
   <h2>HOW HONEST IS IT</h2>
@@ -91,15 +92,15 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--dim);fon
       <div class="tags"><span class="tag m">Measured</span><span class="tag c">Computed</span><span class="tag e">Estimated</span><span class="tag s">Simulated</span><span class="tag a">Assumed</span></div>
     </div>
     <div style="color:var(--dim);font-size:15px">
-      <p style="margin:0 0 8px">At AIIMS junction only 16% of road widths and 17% of building heights exist in OpenStreetMap. The rest are defaults, and the page lists them under <i>Gaps we will not hide</i>.</p>
-      <p style="margin:0">Tree counts from a satellite map are a lower bound. Costs use assumed unit rates, not quotes.</p>
+      <p style="margin:0 0 8px">At AIIMS junction only <span id="pw">23%</span> of road widths and <span id="ph">17%</span> of building heights exist in OpenStreetMap. The rest are defaults, and the page lists them under <i>Gaps we will not hide</i>.</p>
+      <p style="margin:0">Tree counts from a satellite map are a lower bound. Traffic results are simulated from assumed demand, with no counts. Costs use assumed unit rates, not quotes.</p>
     </div>
   </section>
 
   <h2>TRY IT</h2>
   <section class="cards">
-    <a class="card" href="viewer.html"><b>Real twin</b><span>Five real sites. Sun slider, shade overlay, three fixes, and the doctor.</span></a>
-    <a class="card" href="earth.html?site=aiims"><b>On real 3D</b><span>The whole analysis on photoreal Google 3D Tiles: shade overlay, trees, fixes, cameras and a guided tour. Works on a flat map without a key.</span></a>
+    <a class="card" href="viewer.html"><b>Real twin</b><span>Five real sites. Sun slider, shade fixes, traffic hot spots with tested fixes, a gaussian splat view, a guided tour and the doctor.</span></a>
+    <a class="card" href="earth.html?site=aiims"><b>On real 3D</b><span>The whole analysis on photoreal Google 3D Tiles: shade overlay, trees, traffic hot spots and fixes, cameras, glow and a guided tour. Works on a flat map without a key.</span></a>
     <a class="card" href="demo/index.html"><b>Simulator demo</b><span>A generated junction: cars, signals, bus lanes and before/after. Labelled as generated.</span></a>
   </section>
 
@@ -114,6 +115,11 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--dim);fon
   document.getElementById('s1').textContent=s.baseline_day_mean_shade_pct+'% to '+s.day_mean_shade_pct+'%';
   document.querySelector('#s1+span').textContent='day-mean walkway shade at AIIMS junction with '+s.trees_added.length+' street trees';
   document.getElementById('s2').textContent=t.stats.canopy.tree_tops_found;
+  const ws=t.stats.road_width_sources, hs=t.stats.building_height_sources, nd=(ws.osm_width||0)+(ws.lanes||0)+(ws.default||0);
+  document.getElementById('pw').textContent=Math.round(100*((ws.osm_width||0)+(ws.lanes||0))/nd)+'%';
+  document.getElementById('ph').textContent=Math.round(100*((hs.osm_height||0)+(hs.levels||0)+(hs.lidar||0))/t.stats.buildings)+'%';
+  const dp=await (await fetch('data/dupont/twin.json')).json(), dv=dp.traffic&&dp.traffic.solutions.find(x=>x.area_id===1&&x.kind==='route_diversion');
+  if(dv)document.getElementById('s4').textContent=dv.area_load_before+' to '+dv.area_load_after;
   const tm=await (await fetch('data/times/twin.json')).json();
   document.getElementById('s3').textContent=tm.stats.lidar.buildings_measured+' of '+tm.stats.lidar.buildings_total;
 }catch(e){}})();

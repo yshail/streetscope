@@ -1,4 +1,9 @@
-"""AWS Lambda entry point. POST {"site": "aiims", "question": "..."} returns the checked answer."""
+"""AWS Lambda entry point.
+
+POST {"site": "aiims", "question": "..."}   -> the checked answer
+POST {"site": "aiims", "mode": "brief"}      -> the engineer's brief for the site
+GET  /status                                 -> which model answers (for the badge in the UI)
+"""
 
 from __future__ import annotations
 
@@ -7,6 +12,7 @@ import os
 from pathlib import Path
 
 from . import agent as A
+from . import claude_agent as CA
 from .tools import Site
 
 _CACHE: dict[str, Site] = {}
@@ -36,22 +42,37 @@ def _resp(code: int, body: dict) -> dict:
     return {"statusCode": code, "headers": {"Content-Type": "application/json"}, "body": json.dumps(body)}
 
 
+def status() -> dict:
+    if os.environ.get("USE_LLM", "1") != "1":
+        return {"mode": "offline", "model": None, "provider": None}
+    if os.environ.get("LLM_BACKEND") == "strands":
+        return {"mode": "llm", "model": A.DEFAULT_MODEL, "provider": "Amazon Bedrock (Strands)"}
+    return CA.llm_status()
+
+
 def lambda_handler(event, context=None):
+    method = ((event.get("requestContext") or {}).get("http") or {}).get("method", "POST")
+    if method == "GET":
+        return _resp(200, status())
     token = os.environ.get("ASK_TOKEN")
     headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
     if token and headers.get("x-ask-token") != token:
         return _resp(401, {"error": "missing or wrong token"})
     try:
         body = json.loads(event.get("body") or "{}")
+        brief = body.get("mode") == "brief"
         question = str(body.get("question", "")).strip()[:500]
-        if not question:
+        if not question and not brief:
             return _resp(400, {"error": "ask a question"})
         site = load_site(str(body.get("site", "")))
     except ValueError as exc:
         return _resp(400, {"error": str(exc)})
+    offline = (lambda: A.offline_brief(site)) if brief else (lambda: A.offline_answer(site, question))
+    if status()["mode"] == "offline":
+        return _resp(200, offline())
     try:
-        out = A.ask(site, question) if os.environ.get("USE_LLM", "1") == "1" else A.offline_answer(site, question)
+        out = A.ask(site, question, brief=brief)
     except Exception as exc:  # model or credentials problem: fall back to the deterministic answer
-        out = A.offline_answer(site, question)
+        out = offline()
         out["fallback_reason"] = type(exc).__name__
     return _resp(200, out)
