@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 from datetime import date
 from pathlib import Path
 
 import numpy as np
 
-from . import canopy, lidar, osm, shade, twin
+from . import canopy, lidar, osm, scenarios, shade, twin
 
 
 def build_site(args: argparse.Namespace) -> Path:
@@ -63,16 +64,31 @@ def build_site(args: argparse.Namespace) -> Path:
         except canopy.CanopyUnavailable as exc:
             print("canopy map skipped:", exc)
     day = date.fromisoformat(args.date)
-    stack, meta, walk2 = shade.compute(t, day, args.tz, list(range(6, 19)))
+    hours = list(range(6, 19))
+    stack, meta, walk2 = shade.compute(t, day, args.tz, hours)
     t["shade"] = meta
-    (out / "shade.bin").write_bytes(stack.tobytes())
-    (out / "walk.bin").write_bytes(walk2.tobytes())
+    gz = lambda b: gzip.compress(b, 6)
+    (out / meta["file"]).write_bytes(gz(stack.tobytes()))
+    (out / meta["walk_file"]).write_bytes(gz(walk2.tobytes()))
+    for old in ("shade.bin", "walk.bin"):
+        (out / old).unlink(missing_ok=True)
+    print("planning what-if fixes...")
+    n_trees = args.trees or int(min(200, max(25, meta["walk_cells"] / 80)))   # about one tree per 80 m2 of walkway
+    sc, arrays = scenarios.build(t, day, args.tz, hours, stack, meta, walk2, n_trees)
+    for item in sc:
+        st, wk = arrays[item["id"]]
+        (out / item["files"]["shade"]).write_bytes(gz(st.tobytes()))
+        (out / item["files"]["walk"]).write_bytes(gz(wk.tobytes()))
+    t["scenarios"] = sc
     (out / "twin.json").write_text(json.dumps(t, separators=(",", ":")), encoding="utf-8")
     s = t["stats"]
     print(f"{args.name}: {s['road_ways']} road ways, {s['buildings']} buildings, {s['trees']} trees, {s['bus_stops']} bus stops")
     print("walkway shade % by hour:", dict(zip(meta["hours"], meta["walk_shade_pct"])))
     for g in s["gaps"]:
         print("  gap:", g)
+    for item in sc:
+        print(f"  fix {item['id']}: day-mean walkway shade {item['baseline_day_mean_shade_pct']}% -> {item['day_mean_shade_pct']}%, "
+              f"{item['extra_walk_m2']} m2 more footpath, cost {item['cost_inr']} (assumed)")
     return out
 
 
@@ -89,6 +105,7 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--no-canopy", action="store_true", help="skip the canopy height map")
     b.add_argument("--lidar", choices=["auto", "off"], default="auto", help="use USGS 3DEP LiDAR where it exists (US only)")
     b.add_argument("--date", default=date.today().isoformat())
+    b.add_argument("--trees", type=int, default=0, help="street trees in the what-if scenarios (0 = about one per 80 m2 of walkway)")
     b.add_argument("--tz", type=float, default=5.5, help="hours from UTC at the site")
     b.set_defaults(fn=build_site)
     args = p.parse_args(argv)

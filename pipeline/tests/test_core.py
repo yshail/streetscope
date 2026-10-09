@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 from datetime import date, datetime, timezone
 
 import numpy as np
@@ -259,3 +260,51 @@ def test_unlabelled_survey_finds_trees_from_multiple_returns_not_roofs():
     assert info["tree_tops_found"] == 1               # the 30 m roof has single returns, so it is not a tree
     assert twin_["buildings"][0]["height_source"] == "lidar"
     assert "multiple-return" in twin_["stats"]["canopy"]["note"]
+
+
+# ---------- what-if scenarios ----------
+from streetscope import scenarios
+
+
+def _street_twin():
+    """A 100 m east-west street with a tall building on the south side, so the north footpath is lit at noon."""
+    return {
+        "meta": {"center": {"lat": 28.5672, "lon": 77.21}, "radius_m": 70},
+        "buildings": [{"footprint": [[-60, 20], [60, 20], [60, 40], [-60, 40]], "height_m": 6, "height_source": "default"}],
+        "trees": [], "roads": [{"cls": "mid", "highway": "secondary", "width_m": 8.0, "bridge": False,
+                                "pts": [[-65, 0], [65, 0]]}],
+    }
+
+
+def test_planned_trees_are_spaced_and_on_the_walkway():
+    t = _street_twin()
+    stack, meta, walk2 = shade.compute(t, date(2026, 10, 9), 5.5, [9, 12, 15])
+    trees = scenarios.plan_trees(t, stack, meta, walk2, 6)
+    assert 1 <= len(trees) <= 6
+    for i, a in enumerate(trees):
+        assert abs(a["z"]) < 9.5                     # beside the 8 m road, never on the building
+        for b in trees[i + 1:]:
+            assert math.hypot(a["x"] - b["x"], a["z"] - b["z"]) >= scenarios.MIN_SPACING_M - 1e-6
+
+
+def test_scenarios_raise_shade_and_cost_is_labelled_assumed():
+    t = _street_twin()
+    hours = [8, 10, 12, 14, 16]
+    stack, meta, walk2 = shade.compute(t, date(2026, 10, 9), 5.5, hours)
+    items, arrays = scenarios.build(t, date(2026, 10, 9), 5.5, hours, stack, meta, walk2, 8)
+    by = {i["id"]: i for i in items}
+    assert set(by) == {"trees", "widen", "both"} and set(arrays) == set(by)
+    assert by["trees"]["day_mean_shade_pct"] >= by["trees"]["baseline_day_mean_shade_pct"]
+    assert by["trees"]["extra_walk_m2"] == 0 and by["trees"]["cost_inr"] == len(by["trees"]["trees_added"]) * scenarios.COST_PER_TREE_INR
+    assert by["widen"]["extra_walk_m2"] > 0 and by["widen"]["footpath_strip_m"] == scenarios.WIDE_STRIP_M
+    assert "ASSUMED" in by["both"]["cost_basis"]
+    assert arrays["trees"][0].shape == stack.shape
+
+
+def test_agent_lists_the_precomputed_scenarios():
+    from streetscope_agent import tools as T
+
+    site = T.Site(Path(__file__).resolve().parents[2] / "web" / "data" / "aiims")
+    out = T.list_scenarios(site)
+    assert {s["id"] for s in out["scenarios"]} == {"trees", "widen", "both"}
+    assert out["scenarios"][0]["day_mean_shade_pct_after"] > out["scenarios"][0]["day_mean_shade_pct_before"]

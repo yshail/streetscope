@@ -14,7 +14,8 @@ Cities plan streets from flat maps and old drawings. Heat is 3D: shade depends o
 |---|---|
 | **Twin Builder** (`pipeline/`) | OpenStreetMap in, twin out: roads with width and the *source* of that width, buildings with the source of their height, trees, bus stops, crossings. Then a real sun position and a numpy shade engine give hourly shade on every walkway cell. |
 | **Real-data viewer** (`web/viewer.html`) | Renders the twin in 3D with a sun slider, shade overlay, and a "how much is real" panel. Assumed values are coloured differently and listed under "gaps we will not hide". |
-| **Doctor** (`agent/`) | A Strands agent on Amazon Bedrock with eight allow-listed tools. A number checker verifies every figure in each answer. Falls back to a labelled offline answer if Bedrock is not reachable. |
+| **Try a fix** (`pipeline/streetscope/scenarios.py`, viewer) | Three what-if fixes with real shade maths: plant street trees on the sunniest walkway spots (about one per 80 m² of walkway, 8 m apart), widen footpaths by 1.5 m, or both. Shows day-mean walkway shade and shaded walking area before and after, and an assumed cost. At AIIMS, 132 trees move day-mean walkway shade from 8.9% to 20%. |
+| **Doctor** (`agent/`) | A Strands agent on Amazon Bedrock with nine allow-listed tools, including `list_scenarios`. A number checker verifies every figure in each answer. Falls back to a labelled offline answer if Bedrock is not reachable. |
 | **Google 3D Tiles page** (`web/earth.html`) | Real Google Photorealistic 3D Tiles with the same real OpenStreetMap data on top. Display only; see Rules. |
 | **Simulator demo** (`web/demo/`) | A generated junction with a car-following traffic simulator, signals, bus lanes, six fixes and before/after. Clearly labelled as generated. |
 
@@ -23,7 +24,7 @@ Cities plan streets from flat maps and old drawings. Heat is 3D: shade depends o
 - Level of data: the three Delhi and Tokyo sites are level 3 (open data only). The two US sites are level 1: building heights come from USGS airborne LiDAR. An own phone scan (level 2) is planned.
 - OpenStreetMap often lacks widths and heights. The viewer shows the percentages, for example 17% of building heights are real at the AIIMS site.
 - Trees come from OpenStreetMap plus the Meta and WRI 1 m canopy height map (AWS Open Data). At AIIMS that is 369 tree tops and 24% cover where OpenStreetMap mapped none. The map's average error is 2.8 m and touching crowns merge, so counts are a lower bound. Dense Shibuya shows only 8 canopy tops, which is true to a concrete district.
-- Planted-tree results assume an 8 m tree with a 3 m crown. Costs use an assumed unit rate and are not quotes.
+- Planted-tree results assume an 8 m tree with a 3 m crown. Costs use assumed unit rates (6,000 rupees per tree, 3,500 per m² of footpath) and are not quotes. Widening a footpath adds walking space but barely changes the shade percentage, and the page shows that rather than hiding it.
 - LiDAR trees: the two surveys used here carry no vegetation labels, so trees are found from multiple-return pulses. Touching crowns merge and a few shrubs or scaffolds can slip in; the viewer says so. At Times Square 91 of 103 building heights are measured and 77 tree tops are found (1.7% cover); Dupont Circle has 489 (19.6%).
 - The simulator demo is not a calibrated traffic model. Its bus-lane result assumes 40% of car trips move to buses.
 
@@ -46,7 +47,7 @@ python -m streetscope build --lat 28.5672 --lon 77.2100 --radius 300 --name aiim
 
 Inside the US the builder reads USGS LiDAR automatically (`--lidar off` to skip); elsewhere it reads the canopy map (`--no-canopy` to skip). Both are cached in the site folder. Add the site to `web/data/index.json` to see it in the viewer. Use `--tz` for the site's UTC offset and `--date` for the day to model.
 
-Tests (36):
+Tests (39):
 
 ```bash
 set PYTHONPATH=pipeline;agent

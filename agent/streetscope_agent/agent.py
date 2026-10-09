@@ -15,7 +15,7 @@ Rules you must follow:
 2. Every number you write must be copied from a tool result. If a tool did not give a number, say you do not know it.
 3. If a tool says a value is a default, assumed, estimated or under-counted, say so in plain words.
 4. Keep answers under 120 words. Plain language. No jargon without a short explanation.
-5. When you suggest a change, call what_if_trees first so the numbers come from the shade maths.
+5. When you suggest a change, call list_scenarios or what_if_trees first so the numbers come from the shade maths.
 6. Never claim a result is a real measurement unless the tool says it is measured."""
 
 DEFAULT_MODEL = os.environ.get("BEDROCK_MODEL_ID", "us.amazon.nova-2-lite-v1:0")  # check the exact id in the Bedrock console
@@ -56,6 +56,10 @@ def make_tool_functions(site: T.Site, trace: list[dict]):
         """Walkway shade for every daytime hour, with the best and worst hour."""
         return record("shade_profile", {}, T.shade_profile(site))
 
+    def list_scenarios() -> dict:
+        """The precomputed fixes (street trees, wider footpaths, both) with walkway shade before and after and an assumed cost."""
+        return record("list_scenarios", {}, T.list_scenarios(site))
+
     def sun_hotspots(top: int = 3) -> dict:
         """The sunniest stretches of walkway, with coordinates and how many daytime hours they are lit.
 
@@ -72,7 +76,7 @@ def make_tool_functions(site: T.Site, trace: list[dict]):
         """
         return record("what_if_trees", {"n": n}, T.what_if_trees(site, n))
 
-    return [site_summary, measure_road, count_trees, shade_at, shade_profile, sun_hotspots, what_if_trees]
+    return [site_summary, measure_road, count_trees, shade_at, shade_profile, list_scenarios, sun_hotspots, what_if_trees]
 
 
 def build_agent(site: T.Site, trace: list[dict], model_id: str | None = None, region: str | None = None):

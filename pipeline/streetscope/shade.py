@@ -74,8 +74,8 @@ def stamp_polyline(grid: Grid, pts: list[list[float]], radius_m: float, out: np.
     out[jj[ok], ii[ok]] = True
 
 
-def build_surfaces(twin: dict, grid: Grid):
-    """Rasterise buildings, tree crowns and the walkable surface."""
+def build_surfaces(twin: dict, grid: Grid, strip_m: float = 2.0):
+    """Rasterise buildings, tree crowns and the walkable surface. strip_m is the footpath width beside each road."""
     n = grid.n
     bld = np.zeros((n, n), dtype=np.float32)
     for b in twin["buildings"]:
@@ -107,7 +107,7 @@ def build_surfaces(twin: dict, grid: Grid):
             stamp_polyline(grid, r["pts"], max(r["width_m"], 2.0) / 2, walk)
         elif r["highway"] != "service" and not r["highway"].endswith("_link") and not r["bridge"]:
             stamp_polyline(grid, r["pts"], r["width_m"] / 2, carriage)
-            stamp_polyline(grid, r["pts"], r["width_m"] / 2 + 2.0, outer)
+            stamp_polyline(grid, r["pts"], r["width_m"] / 2 + strip_m, outer)
         else:
             stamp_polyline(grid, r["pts"], r["width_m"] / 2, carriage)
     walk |= outer & ~carriage
@@ -157,11 +157,11 @@ def local_sun(lat: float, lon: float, day: date, hour: float, tz_hours: float) -
     return solar_position(lat, lon, utc)
 
 
-def compute(twin: dict, day: date, tz_hours: float, hours: list[int], cell: float = 1.0):
+def compute(twin: dict, day: date, tz_hours: float, hours: list[int], cell: float = 1.0, strip_m: float = 2.0):
     """Return (stack of uint8 grids at 2 m, metadata dict, walkable mask at 2 m)."""
     lat, lon, radius = twin["meta"]["center"]["lat"], twin["meta"]["center"]["lon"], twin["meta"]["radius_m"]
     grid = Grid(radius, cell)
-    bld, top, bot, walk = build_surfaces(twin, grid)
+    bld, top, bot, walk = build_surfaces(twin, grid, strip_m)
     layers, sun, pct = [], [], []
     block = max(1, int(round(2.0 / cell)))
     for h in hours:
@@ -177,7 +177,7 @@ def compute(twin: dict, day: date, tz_hours: float, hours: list[int], cell: floa
     n2 = grid.n // block
     walk2 = walk[: n2 * block, : n2 * block].reshape(n2, block, n2, block).any(axis=(1, 3)).astype(np.uint8)
     meta = {
-        "file": "shade.bin", "walk_file": "walk.bin", "dtype": "uint8", "shape": list(stack.shape), "cell_m": cell * block,
+        "file": "shade.bin.gz", "walk_file": "walk.bin.gz", "dtype": "uint8", "strip_m": strip_m, "shape": list(stack.shape), "cell_m": cell * block,
         "origin": [grid.x0, grid.z0], "date": day.isoformat(), "tz_hours": tz_hours, "hours": hours,
         "legend": {"255": "sun", "90": "tree shade", "0": "building shade", "1": "inside building"},
         "sun": sun, "walk_shade_pct": pct, "walk_cells": int(walk.sum()),

@@ -37,7 +37,7 @@ select{width:100%;background:#070c12;color:var(--ice);border:1px solid var(--lin
 .kv div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13.5px}
 .kv div:first-child{border-top:0}.kv span{color:var(--dim)}.kv b{font-weight:600;font-variant-numeric:tabular-nums}
 .tag{display:inline-block;font:500 9px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border:1px solid currentColor;margin-left:6px}
-.t-m{color:var(--good)}.t-e{color:#5aa9ff}.t-c{color:var(--ice)}
+.t-m{color:var(--good)}.t-e{color:#5aa9ff}.t-c{color:var(--ice)}.t-a{color:var(--warn)}
 .bar2{height:8px;background:var(--line2);display:flex;margin:6px 0 2px}.bar2 i{display:block;height:100%}
 .gap{font-size:12.5px;color:var(--warn);padding:6px 0;border-top:1px solid var(--line)}
 .bar{grid-area:bar;display:flex;gap:16px 24px;align-items:center;padding:9px 16px;border-top:1px solid var(--line);background:#0a1118;flex-wrap:wrap}
@@ -49,6 +49,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .btn{border:1px solid var(--line2);background:transparent;color:var(--ink);font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;cursor:pointer}
 .btn:hover{border-color:var(--ice)}
 #chart{width:100%;height:auto;display:block}
+.fix{border:1px solid var(--line2);background:transparent;color:var(--ink);text-align:left;padding:8px 10px;cursor:pointer;font:inherit}
+.fix:hover{border-color:var(--faint)}
+.fix[aria-pressed="true"]{border-color:var(--ice);background:rgba(214,239,255,.07)}
+.fix b{display:block;font-weight:600;font-size:13.5px}.fix small{color:var(--dim);font-size:12px}
+.res table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.res td{padding:4px 0;border-top:1px solid var(--line);color:var(--ink)}.res td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.res td.up{color:var(--good)}
 .msg{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);text-align:center;padding:24px;pointer-events:none}
 @media (max-width:1000px){html,body{overflow:auto}.app{height:auto;display:flex;flex-direction:column}.stage{height:60vh;min-height:360px}.panel{overflow:visible}}
 </style>
@@ -63,6 +70,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   <aside class="panel left">
     <section><h3>Site</h3><select id="site"></select><p class="note" id="siteNote"></p></section>
     <section><h3>Layers</h3><div id="layers"></div></section>
+    <section><h3>Try a fix <span class="sub">real shade maths</span></h3>
+      <div id="fixes" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div id="fixres" class="note" style="margin-top:10px"></div></section>
     <section><h3>How to read the colours</h3>
       <div class="note" style="margin:0">Buildings are <b style="color:#9fc4ff">blue</b> when OpenStreetMap has a real height or floor count, and <b style="color:#c9a98a">tan</b> when the height is assumed. Nothing is hidden.</div>
     </section>
@@ -205,19 +215,20 @@ function setHour(h){
   const dx=Math.sin(az)*Math.cos(el), dz=-Math.cos(az)*Math.cos(el), dy=Math.sin(el);
   sunL.position.set(dx*R*3,Math.max(dy,.02)*R*3,dz*R*3); sunL.intensity=s.el>2?1:.05; hemi.intensity=s.el>2?.85:.35;
   $('#hourOut').textContent=String(h).padStart(2,'0')+':00  sun '+Math.round(s.el)+'°';
-  const p=shade.walk_shade_pct[k]; $('#hud').innerHTML='HOUR <b>'+String(h).padStart(2,'0')+':00</b> &nbsp; SUN ELEV <b>'+s.el+'°</b> AZ <b>'+s.az+'°</b><br>WALKWAY IN SHADE <b>'+(p==null?'night':p+'%')+'</b>';
+  const p=(curSc?curSc.walk_shade_pct:shade.walk_shade_pct)[k]; $('#hud').innerHTML='HOUR <b>'+String(h).padStart(2,'0')+':00</b> &nbsp; SUN ELEV <b>'+s.el+'°</b> AZ <b>'+s.az+'°</b><br>WALKWAY IN SHADE <b>'+(p==null?'night':p+'%')+'</b>';
   drawChart(h);
 }
 function drawChart(h){
   const pts=shade.walk_shade_pct, hs=shade.hours, W=320,Hh=130,L=8,Rr=312,Tp=10,B=104, X=v=>L+(v-hs[0])/(hs[hs.length-1]-hs[0])*(Rr-L), Y=v=>B-(v/100)*(B-Tp);
   let s='';[0,50,100].forEach(v=>{s+='<line x1="'+L+'" x2="'+Rr+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="#16232f"/><text x="'+Rr+'" y="'+(Y(v)-3)+'" text-anchor="end" fill="#46586a" font-size="9" font-family="monospace">'+v+'%</text>'});
   hs.forEach((v,i)=>{if(i%3===0)s+='<text x="'+X(v)+'" y="122" text-anchor="middle" fill="#8196ab" font-size="9.5" font-family="monospace">'+String(v).padStart(2,'0')+'</text>'});
-  const line=hs.map((v,i)=>pts[i]==null?null:X(v).toFixed(1)+','+Y(pts[i]).toFixed(1)).filter(Boolean).join(' ');
-  s+='<polyline points="'+line+'" fill="none" stroke="#3ddc97" stroke-width="2"/>';
+  const mk=a=>hs.map((v,i)=>a[i]==null?null:X(v).toFixed(1)+','+Y(a[i]).toFixed(1)).filter(Boolean).join(' ');
+  if(curSc){ s+='<polyline points="'+mk(pts)+'" fill="none" stroke="#8196ab" stroke-width="1.4" stroke-dasharray="4 3"/><polyline points="'+mk(curSc.walk_shade_pct)+'" fill="none" stroke="#3ddc97" stroke-width="2.2"/>'; }
+  else s+='<polyline points="'+mk(pts)+'" fill="none" stroke="#3ddc97" stroke-width="2"/>';
   s+='<line x1="'+X(h)+'" x2="'+X(h)+'" y1="'+Tp+'" y2="'+B+'" stroke="#ff9d3c"/>';
   $('#chart').innerHTML=s;
-  const valid=pts.filter(v=>v!=null), mid=pts[hs.indexOf(12)];
-  $('#shadeNote').textContent='Midday: '+(mid==null?'-':mid+'%')+' of the walkway is in shade. Best hour: '+Math.max(...valid)+'%. Computed from real sun position on '+shade.date+'.';
+  const src=curSc?curSc.walk_shade_pct:pts, valid=src.filter(v=>v!=null), mid=src[hs.indexOf(12)];
+  $('#shadeNote').textContent=''+(curSc?'With this fix, midday: ':'Midday: ')+(mid==null?'-':mid+'%')+' of the walkway is in shade. Best hour: '+Math.max(...valid)+'%. Computed from real sun position on '+shade.date+'.';
   $('#shadeSub').textContent=shade.walk_cells+' walkway cells';
 }
 function stats(){
@@ -246,19 +257,53 @@ stage.addEventListener('wheel',e=>{e.preventDefault();orbit=false;cam.r=clamp(ca
 $('#spin').onclick=()=>{orbit=!orbit;$('#spin').textContent=orbit?'Pause orbit':'Resume orbit'};
 $('#top').onclick=()=>{orbit=false;cam.ph=.12;cam.r=R*2.4;$('#spin').textContent='Resume orbit'};
 
+/* ---------- fixes ---------- */
+const money=n=>n>=1e7?(n/1e7).toFixed(1)+' crore':(n>=1e5?(n/1e5).toFixed(1)+' lakh':Math.round(n).toLocaleString('en-IN'));
+function buildFixes(){
+  const host=$('#fixes'); host.innerHTML=''; const list=[{id:'today',name:'Today',sub:'as mapped'}].concat((T.scenarios||[]).map(x=>({id:x.id,name:x.name,sub:'day-mean shade '+x.baseline_day_mean_shade_pct+'% to '+x.day_mean_shade_pct+'%'})));
+  list.forEach((f,i)=>{const b=document.createElement('button');b.className='fix';b.setAttribute('aria-pressed',i===0);b.innerHTML='<b>'+f.name+'</b><small>'+f.sub+'</small>';b.onclick=()=>chooseFix(f.id);b.dataset.id=f.id;host.appendChild(b)});
+  $('#fixres').innerHTML='Pick a fix to see the walkway shade change on the map and in the chart.';
+}
+function plannedTrees(list){
+  const old=group.getObjectByName('planned'); if(old)group.remove(old);
+  const g=new THREE.Group(); g.name='planned';
+  if(list&&list.length){
+    const cr=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,1),new THREE.MeshLambertMaterial({color:0xf2d04f}),list.length), d=new THREE.Object3D();
+    const tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.2,.3,1,6).translate(0,.5,0),new THREE.MeshLambertMaterial({color:0x6b5a46}),list.length);
+    list.forEach((t,i)=>{const cy=t.height_m-t.crown_r*.85;d.position.set(t.x,0,t.z);d.scale.set(1,cy,1);d.updateMatrix();tr.setMatrixAt(i,d.matrix);d.position.set(t.x,cy,t.z);d.scale.set(t.crown_r,t.crown_r*.85,t.crown_r);d.updateMatrix();cr.setMatrixAt(i,d.matrix)});
+    cr.castShadow=tr.castShadow=true; g.add(cr,tr);
+  }
+  group.add(g);
+}
+async function chooseFix(id){
+  document.querySelectorAll('.fix').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.id===id)));
+  if(id==='today'){curSc=null;SH=SH0;WK=WK0;plannedTrees([]);$('#fixres').innerHTML='Today, as mapped.';setHour(+$('#hour').value);return}
+  const sc=T.scenarios.find(x=>x.id===id);
+  if(!SCA[id])SCA[id]={SH:new Uint8Array(await gunz('data/'+SCbase+sc.files.shade)),WK:new Uint8Array(await gunz('data/'+SCbase+sc.files.walk))};
+  curSc=sc;SH=SCA[id].SH;WK=SCA[id].WK;plannedTrees(sc.trees_added);
+  const up=(a,b)=>b>a?' class="up"':'';
+  $('#fixres').innerHTML='<div class="res"><b style="color:var(--ink)">'+sc.name+'</b><br><span style="color:var(--dim)">'+sc.why+'</span><table>'+
+    '<tr><td>Day-mean walkway shade</td><td'+up(sc.baseline_day_mean_shade_pct,sc.day_mean_shade_pct)+'>'+sc.baseline_day_mean_shade_pct+'% to '+sc.day_mean_shade_pct+'%</td></tr>'+
+    '<tr><td>Shaded walking area</td><td'+up(sc.baseline_shaded_walk_m2_day_mean,sc.shaded_walk_m2_day_mean)+'>'+sc.baseline_shaded_walk_m2_day_mean.toLocaleString()+' to '+sc.shaded_walk_m2_day_mean.toLocaleString()+' m²</td></tr>'+
+    '<tr><td>Trees planted</td><td>'+sc.trees_added.length+'</td></tr>'+
+    '<tr><td>New footpath</td><td>'+sc.extra_walk_m2.toLocaleString()+' m²</td></tr>'+
+    '<tr><td>Cost '+'<span class="tag t-a">assumed</span></td><td>₹ '+money(sc.cost_inr)+'</td></tr></table>'+
+    '<div class="note">'+sc.assumptions+'. '+sc.cost_basis+'</div></div>';
+  setHour(+$('#hour').value);
+}
 /* ---------- layers + boot ---------- */
 const LAYERS=[['buildings','Buildings','#9fc4ff'],['roads','Roads and footpaths','#3a3f47'],['trees','Trees (OSM + canopy map)','#7bd36a'],['heat','Sun and shade overlay','#ff8a2b'],['walkOnly','Overlay on walkways only','#b9b4aa']];
 $('#layers').innerHTML=LAYERS.map(l=>'<div class="layer"><i style="background:'+l[2]+'"></i><span>'+l[1]+'</span><button class="sw" data-k="'+l[0]+'" role="switch" aria-checked="true" aria-label="'+l[1]+'"></button></div>').join('');
 $('#layers').onclick=e=>{const b=e.target.closest('.sw');if(!b)return;const k=b.dataset.k;layers[k]=!layers[k];b.setAttribute('aria-checked',String(layers[k]));if(k==='walkOnly'&&shade)setHour(+$('#hour').value)};
 function applyLayers(){if(!group)return;group.getObjectByName('buildings').visible=layers.buildings;group.getObjectByName('roads').visible=layers.roads;group.getObjectByName('trees').visible=layers.trees;heat.visible=layers.heat}
-let SH=null, WK=null;
+let SCbase='', SH=null, WK=null, SH0=null, WK0=null, curSc=null, SCA={};
+async function gunz(url){const r=await fetch(url);if(!r.ok)throw new Error('missing '+url);const b=await r.arrayBuffer();if(!url.endsWith('.gz'))return b;return await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()}
 async function load(path){
   $('#msg').style.display='grid'; $('#msg').textContent='Loading the twin...';
   const base=path.slice(0,path.lastIndexOf('/')+1);
   T=await (await fetch('data/'+path)).json(); shade=T.shade;
-  SH=new Uint8Array(await (await fetch('data/'+base+shade.file)).arrayBuffer());
-  WK=new Uint8Array(await (await fetch('data/'+base+shade.walk_file)).arrayBuffer());
-  build(); stats(); const sl=$('#hour'); sl.min=shade.hours[0]; sl.max=shade.hours[shade.hours.length-1]; sl.value=15; setHour(15); applyLayers(); $('#msg').style.display='none';
+  SH=new Uint8Array(await gunz('data/'+base+shade.file)); WK=new Uint8Array(await gunz('data/'+base+shade.walk_file)); SH0=SH; WK0=WK; curSc=null; SCA={}; SCbase=base;
+  build(); stats(); buildFixes(); const sl=$('#hour'); sl.min=shade.hours[0]; sl.max=shade.hours[shade.hours.length-1]; sl.value=15; setHour(15); applyLayers(); $('#msg').style.display='none';
 }
 $('#hour').addEventListener('input',e=>setHour(+e.target.value));
 /* ---------- ask the doctor ---------- */

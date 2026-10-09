@@ -26,7 +26,7 @@ def load_site(site_id: str) -> Site:
         local = Path("/tmp/twins") / site_id
         local.mkdir(parents=True, exist_ok=True)
         s3 = boto3.client("s3")
-        for f in ("twin.json", "shade.bin", "walk.bin"):
+        for f in ("twin.json", "shade.bin.gz", "walk.bin.gz"):
             s3.download_file(bucket, f"{prefix}{site_id}/{f}", str(local / f))
     _CACHE[site_id] = Site(local)
     return _CACHE[site_id]

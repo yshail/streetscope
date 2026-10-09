@@ -27,6 +27,6 @@ twins = OUT / "twins"
 for site in (ROOT / "web" / "data").iterdir():
     if (site / "twin.json").exists():
         twins.mkdir(exist_ok=True)
-        shutil.copytree(site, twins / site.name, ignore=shutil.ignore_patterns("osm.raw.json"))
+        shutil.copytree(site, twins / site.name, ignore=shutil.ignore_patterns("osm.raw.json", "lidar.npz", "canopy.bin", "scenario_*"))
 size = sum(f.stat().st_size for f in OUT.rglob("*") if f.is_file()) / 1e6
 print(f"bundle ready in {OUT} ({size:.0f} MB unzipped; Lambda limit is 250 MB)")

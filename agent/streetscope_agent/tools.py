@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import gzip
 import json
 import math
 from datetime import date
@@ -10,12 +11,19 @@ from pathlib import Path
 
 import numpy as np
 
+from streetscope import scenarios as sc_mod
 from streetscope import shade as shade_mod
 from streetscope.geo import Frame
 
-TREE_HEIGHT_M = 8.0       # assumed height of a newly planted tree after a few years
-TREE_CROWN_R = 3.0        # assumed crown radius
-COST_PER_TREE_INR = 6000  # assumed planting plus three years of care, not a quote
+TREE_HEIGHT_M = sc_mod.TREE_HEIGHT_M
+TREE_CROWN_R = sc_mod.TREE_CROWN_R
+COST_PER_TREE_INR = sc_mod.COST_PER_TREE_INR
+
+
+def _read(path: Path) -> bytes:
+    """Read a data file; gzip files are unpacked."""
+    data = path.read_bytes()
+    return gzip.decompress(data) if path.suffix == ".gz" else data
 
 
 class Site:
@@ -27,9 +35,9 @@ class Site:
         self.twin = json.loads((folder / "twin.json").read_text(encoding="utf-8"))
         self.meta = self.twin["shade"]
         shape = self.meta["shape"]
-        self.stack = np.frombuffer((folder / self.meta["file"]).read_bytes(), dtype=np.uint8).reshape(shape)
+        self.stack = np.frombuffer(_read(folder / self.meta["file"]), dtype=np.uint8).reshape(shape)
         n = shape[1]
-        self.walk = np.frombuffer((folder / self.meta["walk_file"]).read_bytes(), dtype=np.uint8).reshape(n, n)
+        self.walk = np.frombuffer(_read(folder / self.meta["walk_file"]), dtype=np.uint8).reshape(n, n)
         c = self.twin["meta"]["center"]
         self.frame = Frame(c["lat"], c["lon"])
 
@@ -162,6 +170,20 @@ def what_if_trees(site: Site, n: int = 6) -> dict:
             "cost": cost_estimate(len(spots))}
 
 
+def list_scenarios(site: Site) -> dict:
+    """The what-if fixes computed when the twin was built, with before and after walkway shade."""
+    items = []
+    for sc in site.twin.get("scenarios", []):
+        items.append({
+            "id": sc["id"], "name": sc["name"], "trees_added": len(sc["trees_added"]),
+            "footpath_strip_m": sc["footpath_strip_m"], "extra_footpath_m2": sc["extra_walk_m2"],
+            "day_mean_shade_pct_before": sc["baseline_day_mean_shade_pct"], "day_mean_shade_pct_after": sc["day_mean_shade_pct"],
+            "shaded_walking_area_m2_before": sc["baseline_shaded_walk_m2_day_mean"],
+            "shaded_walking_area_m2_after": sc["shaded_walk_m2_day_mean"],
+            "cost_inr": sc["cost_inr"], "cost_basis": sc["cost_basis"], "assumptions": sc["assumptions"]})
+    return {"scenarios": items, "meaning": "day-mean shade is the average over daytime hours with the sun above 15 degrees"}
+
+
 def cost_estimate(n_trees: int) -> dict:
     return {"trees": n_trees, "cost_inr": n_trees * COST_PER_TREE_INR,
             "basis": "ASSUMED unit rate of 6,000 rupees per tree including three years of care. Not a quote."}
@@ -169,5 +191,5 @@ def cost_estimate(n_trees: int) -> dict:
 
 TOOLS = {
     "site_summary": site_summary, "measure_road": measure_road, "count_trees": count_trees, "shade_at": shade_at,
-    "shade_profile": shade_profile, "sun_hotspots": sun_hotspots, "what_if_trees": what_if_trees, "cost_estimate": cost_estimate,
+    "shade_profile": shade_profile, "list_scenarios": list_scenarios, "sun_hotspots": sun_hotspots, "what_if_trees": what_if_trees, "cost_estimate": cost_estimate,
 }
