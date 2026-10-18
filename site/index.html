@@ -11,6 +11,7 @@
 <meta property="og:url" content="https://greencityai.shaileshyadav.in/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#e6e9e4">
+<meta name="format-detection" content="telephone=no">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='9' cy='20' r='3' fill='%232e7a4a'/%3E%3Ccircle cx='17' cy='12' r='3' fill='%23e8a317'/%3E%3Ccircle cx='24' cy='21' r='3' fill='%233c5a88'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,7 +23,8 @@
   --f:'Archivo',system-ui,sans-serif;
 }
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;scrollbar-width:none}
+html::-webkit-scrollbar{display:none}
 body{margin:0;background:var(--concrete);color:var(--ink);font:400 17px/1.6 var(--f);font-variation-settings:'wdth' 100;font-feature-settings:'tnum' 1}
 a{color:inherit;text-underline-offset:3px;text-decoration-thickness:1px}
 a:hover{text-decoration-thickness:2px}
@@ -39,7 +41,17 @@ img,video{display:block;max-width:100%}
 .gh svg{width:18px;height:18px}
 
 /* hero: the scan itself */
-.hero{position:relative;height:100vh;height:100svh;min-height:560px;overflow:hidden}
+.hero-track{height:230vh;position:relative}
+.hero{position:sticky;top:0;height:100vh;height:100svh;min-height:560px;overflow:hidden}
+.hero-copy,.hero-god{will-change:transform,opacity}
+.hero-god{position:absolute;left:24px;bottom:28px;z-index:2;max-width:min(620px,calc(100% - 48px));pointer-events:none;opacity:0}
+.hero-god p{margin:0;font-weight:800;font-size:clamp(30px,4.2vw,58px);line-height:.98;letter-spacing:-.025em;font-variation-settings:'wdth' 118}
+.hero-god small{display:block;margin-top:14px;font-size:16px;color:var(--dim);font-variation-settings:'wdth' 92;font-weight:500;letter-spacing:0}
+/* the sun clock stands in for the scrollbar: the page runs from sunrise to sunset */
+.clock{position:fixed;right:14px;top:14vh;bottom:14vh;width:2px;background:var(--rule);z-index:5;pointer-events:none}
+.clock b{position:absolute;left:50%;top:0;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;background:var(--sun);box-shadow:0 0 0 5px rgba(232,163,23,.18)}
+.clock span{position:absolute;right:14px;top:0;transform:translateY(-50%);padding:2px 7px;border-radius:999px;background:var(--concrete);border:1px solid var(--rule);font-size:12px;font-weight:600;color:var(--ink);font-variation-settings:'wdth' 80;white-space:nowrap}
+.clock i{position:absolute;left:0;top:0;width:2px;background:var(--sun);height:0}
 #scan{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
 #scan:active{cursor:grabbing}
 .hero::after{content:'';position:absolute;inset:auto 0 0;height:46%;z-index:1;pointer-events:none;background:linear-gradient(to top,var(--concrete) 18%,rgba(230,233,228,.86) 52%,rgba(230,233,228,0))}
@@ -78,7 +90,10 @@ h2{margin:0 0 28px;font-weight:800;font-size:clamp(32px,4.4vw,56px);line-height:
 .steps{list-style:none;margin:0;padding:0;counter-reset:s}
 .steps li{counter-increment:s;display:grid;grid-template-columns:72px minmax(0,4fr) minmax(0,7fr);gap:24px;padding:26px 0;border-top:1px solid var(--rule)}
 .steps li:last-child{border-bottom:1px solid var(--rule)}
-.steps li::before{content:counter(s);font-weight:800;font-size:40px;line-height:1;font-variation-settings:'wdth' 62;color:var(--dim)}
+.steps li::before{content:counter(s);font-weight:800;font-size:40px;line-height:1;font-variation-settings:'wdth' 62;color:var(--rule);transition:color .35s}
+.steps li.on::before{color:var(--sun)}
+.steps li h3,.steps li p{transition:opacity .35s}
+.steps.live li:not(.on) h3,.steps.live li:not(.on) p{opacity:.45}
 .steps h3{margin:0;font-size:21px;font-weight:700;line-height:1.25;font-variation-settings:'wdth' 100}
 .steps p{margin:0;max-width:58ch}
 .steps b{font-weight:700}
@@ -144,6 +159,9 @@ h2{margin:0 0 28px;font-weight:800;font-size:clamp(32px,4.4vw,56px);line-height:
   section{padding:72px 0}
 }
 @media (max-width:640px){
+  .hero-track{height:auto}
+  .hero{position:relative}
+  .hero-god,.clock{display:none}
   .wrap,.bar{padding-left:16px;padding-right:16px}
   .hero{height:auto;min-height:0;display:flex;flex-direction:column}
   #scan{position:relative;height:62vh;min-height:380px;order:1}
@@ -158,7 +176,7 @@ h2{margin:0 0 28px;font-weight:800;font-size:clamp(32px,4.4vw,56px);line-height:
   .hero::after{display:none}
   h1{font-size:39px}
 }
-@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}.hero-track{height:auto}.hero{position:relative}.hero-god{display:none}}
 </style>
 </head>
 <body>
@@ -168,12 +186,19 @@ h2{margin:0 0 28px;font-weight:800;font-size:clamp(32px,4.4vw,56px);line-height:
   <a class="gh" href="https://github.com/yshail/streetscope"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>View code</a>
 </header>
 
+<div class="clock" aria-hidden="true"><i></i><b></b><span>06:00</span></div>
+
+<div class="hero-track" id="track">
 <div class="hero">
   <canvas id="scan" aria-label="Drone point cloud of the IIT Gandhinagar campus. Drag to turn it."></canvas>
   <div class="status" id="status">Loading 220,000 survey points…</div>
   <div class="hero-copy">
     <h1>Point clouds in.<span>Shade maps out.</span></h1>
     <p class="lede">GreenCityAI turns a raw drone or LiDAR scan into a measured 3D twin of the street, then works out where people walk in the sun and which fix would help.</p>
+  </div>
+  <div class="hero-god" aria-hidden="true">
+    <p>From above, millions of points become ground, roofs and trees.</p>
+    <small>Same scan, classified by our pipeline. Keep scrolling.</small>
   </div>
   <div class="modes">
     <div class="seg" role="group" aria-label="Colour the points by">
@@ -184,6 +209,7 @@ h2{margin:0 0 28px;font-weight:800;font-size:clamp(32px,4.4vw,56px);line-height:
     <div class="key" id="key" aria-live="polite"></div>
     <div class="src">220,000 of 12.6 million points from the public IIT Gandhinagar campus drone survey (CC BY-NC 3.0). Classes found by our pipeline. Drag to turn.</div>
   </div>
+</div>
 </div>
 
 <main>
@@ -302,7 +328,7 @@ h2{margin:0 0 28px;font-weight:800;font-size:clamp(32px,4.4vw,56px);line-height:
     <div>
       <h3>Built by</h3>
       <ul class="team">
-        <li><a href="https://shaileshyadav.in/">Shailesh Yadav</a></li>
+        <li><a href="https://www.linkedin.com/in/yshail/">Shailesh Yadav</a></li>
         <li><a href="https://www.linkedin.com/in/ankur-singh-ai/">Ankur Singh</a></li>
         <li><a href="https://www.linkedin.com/in/shubhamjha-dev/">Shubham Jha</a></li>
       </ul>
@@ -314,7 +340,7 @@ h2{margin:0 0 28px;font-weight:800;font-size:clamp(32px,4.4vw,56px);line-height:
   <div class="wrap">
     <a class="big" href="https://github.com/yshail/streetscope">github.com/yshail/streetscope</a>
     <p class="prose" style="margin-top:22px">The pipeline, the app and the video script are all in the repo. Run <code>scripts/run_all.bat</code> and open the app locally.</p>
-    <div class="foot"><span>GreenCityAI</span><a href="https://shaileshyadav.in/">shaileshyadav.in</a></div>
+    <div class="foot"><span>GreenCityAI</span><span><a href="https://www.linkedin.com/in/yshail/">LinkedIn</a> &nbsp; <a href="https://shaileshyadav.in/">shaileshyadav.in</a></span></div>
   </div>
 </section>
 </main>
@@ -410,11 +436,32 @@ void main(){ vec2 d=gl_PointCoord-.5; if(dot(d,d)>.25) discard; gl_FragColor=vec
   // colour modes
   let from = 0, to = 0, mixStart = -1
   const btns = document.querySelectorAll('.seg button')
-  btns.forEach(b => b.addEventListener('click', () => {
-    const m = +b.dataset.mode; if (m === to) return
+  let picked = false
+  function setMode(m) {
+    if (m === to) return
     from = to; to = m; mixStart = performance.now()
-    btns.forEach(x => x.setAttribute('aria-pressed', x === b)); key.innerHTML = KEYS[m]
-  }))
+    btns.forEach(x => x.setAttribute('aria-pressed', +x.dataset.mode === m)); key.innerHTML = KEYS[m]
+  }
+  btns.forEach(b => b.addEventListener('click', () => { picked = true; setMode(+b.dataset.mode) }))
+
+  // scroll: the hero is pinned while the camera climbs to a top-down view, and the sun clock tracks the whole page
+  const track = document.getElementById('track'), copy = document.querySelector('.hero-copy'), god = document.querySelector('.hero-god')
+  const clockDot = document.querySelector('.clock b'), clockFill = document.querySelector('.clock i'), clockLab = document.querySelector('.clock span')
+  let lift = 0
+  const ease = x => x * x * (3 - 2 * x)
+  function onScroll() {
+    const run = track.offsetHeight - innerHeight
+    lift = run > 40 ? Math.min(1, Math.max(0, scrollY / run)) : 0
+    const a = Math.max(0, 1 - lift * 2.4), g = Math.min(1, Math.max(0, (lift - 0.45) / 0.3))
+    copy.style.opacity = a; copy.style.transform = `translateY(${-lift * 70}px)`
+    god.style.opacity = g; god.style.transform = `translateY(${(1 - g) * 36}px)`
+    if (!picked && run > 40) setMode(lift > 0.5 ? 1 : 0)
+    const q = Math.min(1, Math.max(0, scrollY / Math.max(1, document.documentElement.scrollHeight - innerHeight)))
+    clockDot.style.top = clockLab.style.top = (q * 100) + '%'; clockFill.style.height = (q * 100) + '%'
+    const mins = Math.round(360 + q * 720)
+    clockLab.textContent = String(Math.floor(mins / 60)).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0')
+  }
+  addEventListener('scroll', onScroll, { passive: true }); addEventListener('resize', onScroll); onScroll()
 
   let w = 0, h = 0, dpr = 1
   function resize() {
@@ -433,9 +480,10 @@ void main(){ vec2 d=gl_PointCoord-.5; if(dot(d,d)>.25) discard; gl_FragColor=vec
     idle += dt
     if (!dragging && !reduce && idle > 1.5) yaw += dt * 0.05
     const narrow = w / h < 1
-    const d = narrow ? dist * 1.35 : dist
-    const eye = [Math.cos(yaw) * Math.cos(pitch) * d, Math.sin(pitch) * d, Math.sin(yaw) * Math.cos(pitch) * d]
-    const target = narrow ? [0, 0, 0] : [-60, -40, 60]
+    const e = ease(lift), pt = pitch + (1.5 - pitch) * e
+    const d = (narrow ? dist * 1.35 : dist) * (1 + 0.25 * e)
+    const eye = [Math.cos(yaw) * Math.cos(pt) * d, Math.sin(pt) * d, Math.sin(yaw) * Math.cos(pt) * d]
+    const target = narrow ? [0, 0, 0] : [-60 * (1 - e) - 120 * e, -40 * (1 - e), 60 * (1 - e)]
     const m = mul(persp(0.62, w / h, 10, 3000), look([eye[0] + target[0], eye[1] + target[1], eye[2] + target[2]], target))
     const mixv = mixStart < 0 ? 1 : Math.min(1, (now - mixStart) / 450)
     gl.viewport(0, 0, w, h); gl.clearColor(0.902, 0.914, 0.894, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST)
@@ -444,6 +492,18 @@ void main(){ vec2 d=gl_PointCoord-.5; if(dot(d,d)>.25) discard; gl_FragColor=vec
     gl.drawArrays(gl.POINTS, 0, count)
   }
   load().then(() => { status.remove(); requestAnimationFrame(frame) }).catch(() => { status.textContent = 'The scan could not load. The rest of the page works.' })
+
+  // the pipeline step in the middle of the screen is the one being read
+  const steps = document.querySelector('.steps')
+  if (!reduce) {
+    steps.classList.add('live')
+    const items = [...steps.querySelectorAll('li')]
+    const mark = () => {
+      const mid = innerHeight / 2
+      items.forEach(li => { const r = li.getBoundingClientRect(); li.classList.toggle('on', r.top <= mid && r.bottom > mid) })
+    }
+    addEventListener('scroll', mark, { passive: true }); mark()
+  }
 
   // tree count bars fill once, when they come into view
   const bars = document.getElementById('count')
