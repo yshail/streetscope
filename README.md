@@ -6,7 +6,7 @@ Built for the WeMakeDevs x AWS *Environmental Hacks* (Heat and Water track), Oct
 
 ## GreenCityAI: the 3D city app
 
-`http://localhost:8765/app/` is **GreenCityAI**, a full-screen urban digital twin built on top of the Streetscope engine (React, TypeScript, Vite, Tailwind, CesiumJS, Three.js; source in `app/`).
+**GreenCityAI**, a full-screen urban digital twin built on top of the Streetscope engine (React, TypeScript, Vite, Tailwind, CesiumJS, Three.js; source in `app/`).
 
 ![GreenCityAI explore view](docs/img/10-gc-explore.jpg)
 *Explore: the city fills the screen. Traffic flows glow along the roads (simulated), hot spots pulse, road widths are drawn as dimension lines, and live weather and air quality from Open-Meteo sit beside the computed shade.*
