@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GreenCityAI</title>
+<meta name="description" content="Drone and LiDAR point clouds in, measured 3D street twins out. Ground, trees and roofs segmented from the scan, the sun traced onto every footpath.">
+<meta property="og:title" content="GreenCityAI">
+<meta property="og:description" content="Point clouds in, shade maps out. A computer vision pipeline for walkable, cooler streets.">
+<meta property="og:image" content="https://greencityai.shaileshyadav.in/assets/poster.jpg">
+<meta property="og:url" content="https://greencityai.shaileshyadav.in/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#e6e9e4">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='9' cy='20' r='3' fill='%232e7a4a'/%3E%3Ccircle cx='17' cy='12' r='3' fill='%23e8a317'/%3E%3Ccircle cx='24' cy='21' r='3' fill='%233c5a88'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --concrete:#e6e9e4; --slab:#d6dbd4; --ink:#17201c; --dim:#56625c;
+  --sun:#e8a317; --canopy:#2e7a4a; --shade:#3c5a88; --rule:#c3cac2;
+  --f:'Archivo',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--concrete);color:var(--ink);font:400 17px/1.6 var(--f);font-variation-settings:'wdth' 100;font-feature-settings:'tnum' 1}
+a{color:inherit;text-underline-offset:3px;text-decoration-thickness:1px}
+a:hover{text-decoration-thickness:2px}
+:focus-visible{outline:2px solid var(--shade);outline-offset:3px}
+img,video{display:block;max-width:100%}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+
+/* top bar */
+.bar{position:absolute;inset:0 0 auto;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:20px 24px;pointer-events:none}
+.bar>*{pointer-events:auto}
+.mark{font-weight:800;font-size:19px;font-variation-settings:'wdth' 112;letter-spacing:-.01em;text-decoration:none}
+.gh{display:inline-flex;gap:8px;align-items:center;text-decoration:none;font-weight:600;font-size:15px;padding:9px 14px;border:1.5px solid var(--ink);border-radius:999px;background:var(--concrete)}
+.gh:hover{background:var(--ink);color:var(--concrete)}
+.gh svg{width:18px;height:18px}
+
+/* hero: the scan itself */
+.hero{position:relative;height:min(92vh,900px);min-height:560px;overflow:hidden;border-bottom:1.5px solid var(--ink)}
+#scan{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
+#scan:active{cursor:grabbing}
+.hero::after{content:'';position:absolute;inset:auto 0 0;height:46%;z-index:1;pointer-events:none;background:linear-gradient(to top,var(--concrete) 18%,rgba(230,233,228,.86) 52%,rgba(230,233,228,0))}
+.hero-copy{position:absolute;left:24px;bottom:28px;z-index:2;max-width:min(760px,calc(100% - 48px));pointer-events:none}
+h1{margin:0;font-weight:850;font-size:clamp(46px,8.6vw,124px);line-height:.86;letter-spacing:-.035em;font-variation-settings:'wdth' 125}
+h1 span{display:block;font-variation-settings:'wdth' 62;font-weight:700;letter-spacing:-.02em}
+.lede{margin:22px 0 0;max-width:46ch;font-size:clamp(16px,1.6vw,19px);line-height:1.5;color:var(--ink)}
+.modes{position:absolute;right:24px;bottom:28px;z-index:2;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.seg{display:flex;border:1.5px solid var(--ink);border-radius:999px;overflow:hidden;background:var(--concrete)}
+.seg button{font:600 14px var(--f);font-variation-settings:'wdth' 100;padding:9px 16px;border:0;background:none;color:var(--ink);cursor:pointer}
+.seg button+button{border-left:1.5px solid var(--ink)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--concrete)}
+.key{display:flex;gap:14px;font-size:13px;color:var(--dim);font-variation-settings:'wdth' 85;min-height:20px;flex-wrap:wrap;justify-content:flex-end}
+.key i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+.ramp{display:inline-block;width:120px;height:8px;border-radius:4px;vertical-align:1px;margin:0 6px;background:linear-gradient(90deg,#3c5a88,#2e7a4a,#e8a317)}
+.src{font-size:12.5px;color:var(--dim);font-variation-settings:'wdth' 80;text-align:right;max-width:42ch}
+.status{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);font-size:14px;z-index:1}
+
+/* sections */
+section{padding:96px 0;border-bottom:1.5px solid var(--ink)}
+h2{margin:0 0 28px;font-weight:800;font-size:clamp(32px,4.4vw,56px);line-height:.95;letter-spacing:-.025em;font-variation-settings:'wdth' 118;max-width:18ch}
+.prose{max-width:62ch}
+.prose p{margin:0 0 1em}
+.split{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:56px;align-items:start}
+
+/* problem */
+.qs{list-style:none;margin:0;padding:0;border-top:1.5px solid var(--ink)}
+.qs li{padding:18px 0;border-bottom:1px solid var(--rule);font-size:clamp(20px,2.2vw,26px);font-weight:600;line-height:1.25;font-variation-settings:'wdth' 92}
+
+/* video */
+.film{background:var(--ink);border-radius:6px;overflow:hidden;aspect-ratio:16/9}
+.film video{width:100%;height:100%}
+.caption{margin-top:12px;font-size:14px;color:var(--dim);font-variation-settings:'wdth' 85}
+
+/* pipeline: a real sequence, so it is numbered */
+.steps{list-style:none;margin:0;padding:0;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:72px minmax(0,4fr) minmax(0,7fr);gap:24px;padding:26px 0;border-top:1px solid var(--rule)}
+.steps li:last-child{border-bottom:1px solid var(--rule)}
+.steps li::before{content:counter(s);font-weight:800;font-size:40px;line-height:1;font-variation-settings:'wdth' 62;color:var(--dim)}
+.steps h3{margin:0;font-size:21px;font-weight:700;line-height:1.25;font-variation-settings:'wdth' 100}
+.steps p{margin:0;max-width:58ch}
+.steps b{font-weight:700}
+
+/* trees result */
+.count{display:grid;gap:22px;margin-top:8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.row .lab{display:flex;justify-content:space-between;gap:16px;font-weight:600;font-variation-settings:'wdth' 92}
+.row .lab b{font-size:clamp(30px,4vw,48px);font-weight:850;line-height:1;font-variation-settings:'wdth' 110;letter-spacing:-.02em}
+.track{height:28px;background:var(--slab);border-radius:3px;overflow:hidden}
+.fill{height:100%;transform-origin:left;transform:scaleX(var(--w));transition:transform 1.4s cubic-bezier(.2,.7,.1,1)}
+.pending .fill{transform:scaleX(0)}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:56px;border-top:1.5px solid var(--ink);padding-top:24px}
+.facts b{display:block;font-size:34px;font-weight:850;line-height:1.05;font-variation-settings:'wdth' 110;letter-spacing:-.02em}
+.facts span{font-size:15px;color:var(--dim)}
+
+/* labels */
+.tags{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1.5px solid var(--ink);border-radius:6px;overflow:hidden;margin-top:12px}
+.tag{padding:22px 20px;background:var(--concrete)}
+.tag+.tag{border-left:1.5px solid var(--ink)}
+.tag strong{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700;margin-bottom:6px}
+.tag strong i{width:12px;height:12px;border-radius:50%;flex:none}
+.tag p{margin:0;font-size:15px;line-height:1.5;color:var(--dim)}
+.tag.syn{background:repeating-linear-gradient(135deg,var(--concrete) 0 9px,var(--slab) 9px 10px)}
+
+/* screens */
+.shots{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:20px}
+.shots figure{margin:0}
+.shots figure:nth-child(1){grid-column:span 12}
+.shots figure:nth-child(n+2){grid-column:span 4}
+.shots img{width:100%;height:auto;border-radius:4px;border:1.5px solid var(--ink)}
+.shots figure:nth-child(n+2) img{aspect-ratio:1600/950;object-fit:cover;object-position:top}
+.shots figcaption{margin-top:10px;font-size:14px;color:var(--dim);font-variation-settings:'wdth' 85}
+
+/* stack */
+.stack{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 40px}
+.stack dl{margin:0}
+.stack dt{font-weight:700;font-size:15px;padding:14px 0 4px;border-top:1px solid var(--rule);font-variation-settings:'wdth' 92}
+.stack dd{margin:0 0 14px;color:var(--dim);font-size:15.5px}
+
+/* credits */
+.credits{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px}
+.credits h3{margin:0 0 10px;font-size:15px;font-weight:700;color:var(--dim);font-variation-settings:'wdth' 92}
+.credits p{margin:0 0 28px;font-size:clamp(19px,2vw,23px);line-height:1.4;font-weight:500}
+.team{list-style:none;margin:0;padding:0;font-size:clamp(26px,3.2vw,40px);font-weight:800;line-height:1.15;letter-spacing:-.02em;font-variation-settings:'wdth' 110}
+
+/* end */
+.end{padding:88px 0 56px;border:0}
+.end a.big{display:inline-block;font-weight:850;font-size:clamp(22px,4.4vw,58px);line-height:1;letter-spacing:-.03em;font-variation-settings:'wdth' 115;text-decoration:none;border-bottom:4px solid var(--sun);padding-bottom:6px;word-break:break-word}
+.end a.big:hover{border-color:var(--ink)}
+.foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:72px;font-size:14px;color:var(--dim)}
+
+@media (max-width:900px){
+  .split,.credits{grid-template-columns:1fr;gap:32px}
+  .steps li{grid-template-columns:48px minmax(0,1fr);gap:8px 16px}
+  .steps li p{grid-column:2}
+  .tags{grid-template-columns:1fr 1fr}
+  .tag:nth-child(3){border-left:0}
+  .tag:nth-child(n+3){border-top:1.5px solid var(--ink)}
+  .shots figure:nth-child(n+2){grid-column:span 12}
+  .stack{grid-template-columns:1fr}
+  .facts{grid-template-columns:1fr}
+  section{padding:72px 0}
+}
+@media (max-width:640px){
+  .wrap,.bar{padding-left:16px;padding-right:16px}
+  .hero{height:auto;min-height:0;display:flex;flex-direction:column}
+  #scan{position:relative;height:62vh;min-height:380px;order:1}
+  .status{height:62vh;min-height:380px;bottom:auto}
+  .hero-copy{position:relative;left:auto;bottom:auto;padding:0 16px 24px;order:2;max-width:none;margin-top:-8px}
+  .modes{position:relative;right:auto;bottom:auto;order:3;align-items:flex-start;padding:0 16px 28px}
+  .key,.src{justify-content:flex-start;text-align:left}
+  .seg button{padding:9px 13px}
+  .tags{grid-template-columns:1fr}
+  .tag+.tag{border-left:0;border-top:1.5px solid var(--ink)}
+  .bar{padding-top:14px}
+  .hero::after{display:none}
+  h1{font-size:39px}
+}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <a class="mark" href="/">GreenCityAI</a>
+  <a class="gh" href="https://github.com/yshail/streetscope"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>View code</a>
+</header>
+
+<div class="hero">
+  <canvas id="scan" aria-label="Drone point cloud of the IIT Gandhinagar campus. Drag to turn it."></canvas>
+  <div class="status" id="status">Loading 220,000 survey points…</div>
+  <div class="hero-copy">
+    <h1>Point clouds in.<span>Shade maps out.</span></h1>
+    <p class="lede">GreenCityAI turns a raw drone or LiDAR scan into a measured 3D twin of the street, then works out where people walk in the sun and which fix would help.</p>
+  </div>
+  <div class="modes">
+    <div class="seg" role="group" aria-label="Colour the points by">
+      <button type="button" data-mode="0" aria-pressed="true">Photo</button>
+      <button type="button" data-mode="1" aria-pressed="false">Class</button>
+      <button type="button" data-mode="2" aria-pressed="false">Height</button>
+    </div>
+    <div class="key" id="key" aria-live="polite"></div>
+    <div class="src">220,000 of 12.6 million points from the public IIT Gandhinagar campus drone survey (CC BY-NC 3.0). Classes found by our pipeline. Drag to turn.</div>
+  </div>
+</div>
+
+<main>
+<section>
+  <div class="wrap split">
+    <div>
+      <h2>Cities plan streets they have never measured</h2>
+    </div>
+    <div>
+      <ul class="qs">
+        <li>Where is the shade on this footpath at 3 in the afternoon?</li>
+        <li>Which junctions choke every evening, and why?</li>
+        <li>If we plant 200 trees here, does the walk actually get cooler?</li>
+      </ul>
+      <div class="prose" style="margin-top:28px">
+        <p>These questions usually get answered with site visits, old surveys and a lot of guessing. A drone flight already holds most of the answer. It just arrives as millions of unlabelled coloured points, so the work is turning that into ground, roofs and trees you can reason about.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Watch it run</h2>
+    <div class="film">
+      <video controls preload="metadata" playsinline poster="assets/poster.jpg">
+        <source src="assets/greencityai.mp4" type="video/mp4">
+      </video>
+    </div>
+    <p class="caption">2 minutes 50 seconds. The video is made by code: a script drives the real app in headless Chrome and records it frame by frame, so every number on screen is live.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>From raw points to a street you can test</h2>
+    <ol class="steps">
+      <li><h3>Put the scan on the map</h3><p>The coordinate system comes from the LAS header, so there's no search step. The UTM grid at the test site is turned about 0.9° from true north, so a plain offset isn't enough: an affine fit to exact transforms places every point with <b>1.4 cm</b> worst-case error.</p></li>
+      <li><h3>Find the ground</h3><p>A progressive morphological filter grows its window step by step and peels off everything that sits above the terrain, leaving a ground model to measure heights against.</p></li>
+      <li><h3>Find the vegetation</h3><p>The test survey came with no classes at all, so we classify it ourselves: survey classes or multiple returns when the file has them, otherwise excess green (2G − R − B) on the photo colour. Dry brown-olive scrub outside mapped buildings counts too. <b>87.8%</b> of the points are classed by our pipeline.</p></li>
+      <li><h3>Measure every building</h3><p>Roof points that fall inside each OpenStreetMap footprint give the building's height from their 90th percentile, so a few stray points can't skew it. <b>71 of 73</b> mapped buildings were measured.</p></li>
+      <li><h3>Find the trees</h3><p>Local maxima of the smoothed canopy height model become tree tops, with cells inside buildings skipped. Each top gets a height and a crown, ready to cast shade.</p></li>
+      <li><h3>Trace the sun</h3><p>For each hour of the chosen day we compute the real sun position and cast shadows from buildings and tree crowns onto every walkway cell. The result is a sun-exposure map of the footpaths.</p></li>
+      <li><h3>Test the fixes</h3><p>A peak-hour traffic model flags overloaded roads. Fixes like a diversion, new street trees or a protected crossing are rerun through the same shade and traffic maths, so before and after are directly comparable.</p></li>
+      <li><h3>Draw it fast</h3><p>A WebGL2 3D gaussian splat renderer we wrote ourselves draws one splat per measured point. The city view batches buildings, roads and trees into a few GPU draws.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap split">
+    <div>
+      <h2>The scan sees trees the satellite misses</h2>
+      <p class="prose">Same 900 m square of campus, two sources. The satellite canopy map has about 2.8 m of error and merges touching crowns into one, so whole rows of street trees collapse into a few.</p>
+    </div>
+    <div>
+      <div class="count pending" id="count">
+        <div class="row"><div class="lab"><span>Tree tops found in the drone scan</span><b>2,380</b></div><div class="track"><div class="fill" style="--w:1;background:var(--canopy)"></div></div></div>
+        <div class="row"><div class="lab"><span>Trees in the satellite canopy map</span><b>397</b></div><div class="track"><div class="fill" style="--w:.1668;background:var(--dim)"></div></div></div>
+      </div>
+      <div class="facts">
+        <div><b>12.6M</b><span>points in the survey</span></div>
+        <div><b>71 / 73</b><span>buildings measured from roof points</span></div>
+        <div><b>~2 min</b><span>to build a twin for a new place</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Every number says where it came from</h2>
+    <div class="prose">
+      <p>No scan? GreenCityAI builds the twin from open data instead: OpenStreetMap buildings and roads, and a satellite canopy map on AWS Open Data. Some of that has to be made up, like assumed floor counts for unmeasured buildings, simulated traffic and generated splats. All of it is flagged. In planning, a confident wrong number is worse than no number.</p>
+    </div>
+    <div class="tags">
+      <div class="tag"><strong><i style="background:var(--ink)"></i>Observed</strong><p>Read straight from a scan or a map, like a mapped crossing or a measured roof.</p></div>
+      <div class="tag"><strong><i style="background:var(--canopy)"></i>Computed</strong><p>Derived with real maths from observed data, like walkway shade from the sun position.</p></div>
+      <div class="tag syn"><strong><i style="background:var(--sun)"></i>Simulated</strong><p>Synthetic, from a model, like peak-hour traffic. Useful for comparison, not a count.</p></div>
+      <div class="tag syn"><strong><i style="background:var(--shade)"></i>Proposed</strong><p>A fix being tested. Its costs are labelled assumed, never quoted.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Inside the app</h2>
+    <div class="shots">
+      <figure><img src="assets/analyze.jpg" alt="Analyze view: a junction with overloaded approaches in red, a findings panel listing simulated, computed and observed results" width="1600" height="950" loading="lazy"><figcaption>Analyze scans a junction and pins its findings, each with its label.</figcaption></figure>
+      <figure><img src="assets/simulate.jpg" alt="Simulate view comparing current and proposed street layouts" width="1600" height="950" loading="lazy"><figcaption>Simulate puts current and proposed side by side.</figcaption></figure>
+      <figure><img src="assets/pointcloud.jpg" alt="Point cloud view of a survey coloured by class" width="1600" height="950" loading="lazy"><figcaption>Point cloud view, coloured by photo, class or height.</figcaption></figure>
+      <figure><img src="assets/splats.jpg" alt="A city twin drawn as gaussian splats" width="1500" height="950" loading="lazy"><figcaption>An open-data twin drawn as gaussian splats.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Built with</h2>
+    <div class="stack">
+      <dl><dt>Pipeline</dt><dd>Python and NumPy, laspy with LAZ support, pyproj</dd><dt>Inputs</dt><dd>LAS, LAZ and PLY point clouds from drones or LiDAR</dd></dl>
+      <dl><dt>App</dt><dd>React, TypeScript, Vite, Tailwind</dd><dt>3D</dt><dd>CesiumJS, Three.js and our own WebGL2 gaussian splat renderer</dd></dl>
+      <dl><dt>Open data</dt><dd>OpenStreetMap, satellite canopy map on AWS Open Data, USGS airborne LiDAR, Open-Meteo</dd><dt>Optional view</dt><dd>Google Photorealistic 3D Tiles, for display only. No number is measured from them.</dd></dl>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap credits">
+    <div>
+      <h3>Where the idea came from</h3>
+      <!-- Replace the name and link with the God's Eye View builder -->
+      <p>Seeing a whole city from above and actually understanding it came from <a href="#">God's Eye View</a> by its builder, <a href="#">[builder's name]</a>.</p>
+      <h3>Thank you</h3>
+      <!-- Add Abhishek Jha's profile link -->
+      <p><a href="#">Abhishek Jha</a>, for a conversation about urban planning that started all of this.</p>
+    </div>
+    <div>
+      <h3>Built by</h3>
+      <!-- Replace A, B and C with your friends' names and links -->
+      <ul class="team">
+        <li><a href="https://shaileshyadav.in/">Shailesh Yadav</a></li>
+        <li>A</li>
+        <li>B</li>
+        <li>C</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="end">
+  <div class="wrap">
+    <a class="big" href="https://github.com/yshail/streetscope">github.com/yshail/streetscope</a>
+    <p class="prose" style="margin-top:22px">The pipeline, the app and the video script are all in the repo. Run <code>scripts/run_all.bat</code> and open the app locally.</p>
+    <div class="foot"><span>GreenCityAI</span><a href="https://shaileshyadav.in/">shaileshyadav.in</a></div>
+  </div>
+</section>
+</main>
+
+<script>
+(() => {
+  const canvas = document.getElementById('scan'), status = document.getElementById('status'), key = document.getElementById('key')
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+  const KEYS = [
+    '',
+    '<span><i style="background:#b8ae98"></i>Ground</span><span><i style="background:#6d7276"></i>Road</span><span><i style="background:#3c5a88"></i>Building</span><span><i style="background:#2e7a4a"></i>Vegetation</span><span><i style="background:#c9cec8;outline:1px solid #8f9890"></i>Other</span>',
+    '<span>0 m<span class="ramp"></span>20 m above ground</span>'
+  ]
+  const gl = canvas.getContext('webgl', { antialias: true, premultipliedAlpha: false })
+  if (!gl) { status.textContent = 'This browser cannot draw WebGL, so the scan is hidden.'; return }
+
+  const vs = `
+attribute vec3 p; attribute vec3 c; attribute float k; attribute float a;
+uniform mat4 m; uniform float t, from, to, mixv, size;
+varying vec3 v;
+vec3 cls(float k){
+  if(k<0.5) return vec3(.79,.81,.78);
+  if(k<1.5) return vec3(.72,.68,.6);
+  if(k<2.5) return vec3(.43,.45,.46);
+  if(k<3.5) return vec3(.235,.353,.533);
+  return vec3(.18,.478,.29);
+}
+vec3 ramp(float h){
+  float x=clamp(h/20.,0.,1.);
+  vec3 a=vec3(.235,.353,.533), b=vec3(.18,.478,.29), d=vec3(.91,.64,.09);
+  return x<.5?mix(a,b,x*2.):mix(b,d,x*2.-1.);
+}
+vec3 pick(float i){ return i<.5?c:(i<1.5?cls(k):ramp(a)); }
+void main(){
+  float rise=clamp(t*1.25-length(p.xz)/400.,0.,1.);
+  rise=1.-pow(1.-rise,3.);
+  vec3 q=vec3(p.x,mix(-16.,p.y,rise),p.z);
+  gl_Position=m*vec4(q,1.);
+  gl_PointSize=size/gl_Position.w;
+  v=mix(pick(from),pick(to),mixv);
+}`
+  const fs = `precision mediump float; varying vec3 v;
+void main(){ vec2 d=gl_PointCoord-.5; if(dot(d,d)>.25) discard; gl_FragColor=vec4(v,1.); }`
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s }
+  const prog = gl.createProgram()
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog)
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { status.textContent = 'The scan could not be drawn on this device.'; return }
+  gl.useProgram(prog)
+  const U = n => gl.getUniformLocation(prog, n)
+  const u = { m: U('m'), t: U('t'), from: U('from'), to: U('to'), mixv: U('mixv'), size: U('size') }
+
+  let count = 0
+  async function load() {
+    const meta = await (await fetch('assets/scan.json')).json()
+    let buf = await (await fetch('assets/scan.bin.gz')).arrayBuffer()
+    const head = new Uint8Array(buf, 0, 2)
+    if (head[0] === 0x1f && head[1] === 0x8b) buf = await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
+    count = meta.count
+    const s = meta.stride, dv = new DataView(buf), pos = new Float32Array(count * 3), col = new Uint8Array(count * 3), cl = new Uint8Array(count), ag = new Float32Array(count), k = meta.scale_m
+    for (let i = 0; i < count; i++) {
+      const o = i * s
+      pos[i * 3] = dv.getInt16(o, true) * k; pos[i * 3 + 1] = dv.getInt16(o + 2, true) * k; pos[i * 3 + 2] = dv.getInt16(o + 4, true) * k
+      col[i * 3] = dv.getUint8(o + 6); col[i * 3 + 1] = dv.getUint8(o + 7); col[i * 3 + 2] = dv.getUint8(o + 8); cl[i] = dv.getUint8(o + 9)
+      ag[i] = dv.getUint8(o + 10) * meta.agl_scale
+    }
+    const attr = (name, data, n, type, norm) => {
+      const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW)
+      const l = gl.getAttribLocation(prog, name); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, n, type, norm, 0, 0)
+    }
+    attr('p', pos, 3, gl.FLOAT, false); attr('c', col, 3, gl.UNSIGNED_BYTE, true); attr('k', cl, 1, gl.UNSIGNED_BYTE, false); attr('a', ag, 1, gl.FLOAT, false)
+  }
+
+  // camera
+  let yaw = 0.7, pitch = 0.62, dist = 520, dragging = false, lx = 0, ly = 0, idle = 0
+  canvas.addEventListener('pointerdown', e => { dragging = true; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId) })
+  canvas.addEventListener('pointermove', e => {
+    if (!dragging) return
+    yaw -= (e.clientX - lx) * 0.006; pitch = Math.min(1.45, Math.max(0.15, pitch + (e.clientY - ly) * 0.004))
+    lx = e.clientX; ly = e.clientY; idle = 0
+  })
+  const up = () => { dragging = false }
+  canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up)
+
+  function persp(f, a, n, fa) { const t = 1 / Math.tan(f / 2), r = 1 / (n - fa); return [t / a, 0, 0, 0, 0, t, 0, 0, 0, 0, (n + fa) * r, -1, 0, 0, 2 * n * fa * r, 0] }
+  function look(e, c) {
+    let zx = e[0] - c[0], zy = e[1] - c[1], zz = e[2] - c[2], l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l
+    let xx = zz, xy = 0, xz = -zx; l = Math.hypot(xx, xz); xx /= l; xz /= l
+    const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx
+    return [xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0, -(xx * e[0] + xy * e[1] + xz * e[2]), -(yx * e[0] + yy * e[1] + yz * e[2]), -(zx * e[0] + zy * e[1] + zz * e[2]), 1]
+  }
+  function mul(a, b) { const o = new Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s } return o }
+
+  // colour modes
+  let from = 0, to = 0, mixStart = -1
+  const btns = document.querySelectorAll('.seg button')
+  btns.forEach(b => b.addEventListener('click', () => {
+    const m = +b.dataset.mode; if (m === to) return
+    from = to; to = m; mixStart = performance.now()
+    btns.forEach(x => x.setAttribute('aria-pressed', x === b)); key.innerHTML = KEYS[m]
+  }))
+
+  let w = 0, h = 0, dpr = 1
+  function resize() {
+    dpr = Math.min(devicePixelRatio || 1, 2); const r = canvas.getBoundingClientRect()
+    w = Math.round(r.width * dpr); h = Math.round(r.height * dpr); canvas.width = w; canvas.height = h
+  }
+  new ResizeObserver(resize).observe(canvas); resize()
+
+  let t0 = 0, last = 0, visible = true
+  new IntersectionObserver(es => { visible = es[0].isIntersecting }).observe(canvas)
+  function frame(now) {
+    requestAnimationFrame(frame)
+    if (!count || !visible) { last = now; return }
+    const dt = Math.min(0.05, (now - last) / 1000); last = now
+    if (!t0) t0 = now
+    idle += dt
+    if (!dragging && !reduce && idle > 1.5) yaw += dt * 0.05
+    const narrow = w / h < 1
+    const d = narrow ? dist * 1.35 : dist
+    const eye = [Math.cos(yaw) * Math.cos(pitch) * d, Math.sin(pitch) * d, Math.sin(yaw) * Math.cos(pitch) * d]
+    const target = narrow ? [0, 0, 0] : [-60, -40, 60]
+    const m = mul(persp(0.62, w / h, 10, 3000), look([eye[0] + target[0], eye[1] + target[1], eye[2] + target[2]], target))
+    const mixv = mixStart < 0 ? 1 : Math.min(1, (now - mixStart) / 450)
+    gl.viewport(0, 0, w, h); gl.clearColor(0.902, 0.914, 0.894, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST)
+    gl.uniformMatrix4fv(u.m, false, m); gl.uniform1f(u.t, reduce ? 10 : (now - t0) / 1000)
+    gl.uniform1f(u.from, from); gl.uniform1f(u.to, to); gl.uniform1f(u.mixv, mixv); gl.uniform1f(u.size, 2.6 * dpr * (h / dpr) / 1.6)
+    gl.drawArrays(gl.POINTS, 0, count)
+  }
+  load().then(() => { status.remove(); requestAnimationFrame(frame) }).catch(() => { status.textContent = 'The scan could not load. The rest of the page works.' })
+
+  // tree count bars fill once, when they come into view
+  const bars = document.getElementById('count')
+  new IntersectionObserver((es, o) => { if (es[0].isIntersecting) { bars.classList.remove('pending'); o.disconnect() } }, { threshold: 0.4 }).observe(bars)
+})()
+</script>
+</body>
+</html>
